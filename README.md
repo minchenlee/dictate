@@ -8,6 +8,9 @@
 - API key 存在 Keychain（service `dev.mclee.dictate`，每個 API host 一把）。
 - 簡轉繁：有安裝 `opencc`（`brew install opencc`）就用 `s2twp` 轉換，程式碼與網址不轉。
 - 插入：剪貼簿＋⌘V，0.5 秒後還原原本的剪貼簿。
+- 歷史紀錄：選單列「最近的轉錄」保留 10 筆，點一下拷貝（⌘1–⌘9）。只存在記憶體，結束 app 就清空。
+- 登入時自動開啟（`SMAppService`）。建議把 app 放到「應用程式」資料夾再打開這個選項。
+- 錄音提示：畫面下方的毛玻璃膠囊，顯示即時音量；開始與結束時有系統提示音（可關）。
 
 ## 權限
 - 麥克風：錄音。
@@ -16,6 +19,7 @@
 ## 開發
 ```sh
 swift run DictateChecks           # 純邏輯測試（headless）。CLT 6.2 的 swift test 會靜默跑 0 個測試，所以改用這個 runner
+swift scripts/make-icon.swift    # 重新產生 Resources/AppIcon-1024.png
 scripts/bundle.sh                # 產生 build/Dictate.app（ad-hoc 簽名）
 SIGN_ID="Apple Development: …" scripts/bundle.sh   # 固定簽名，重 build 不用重新授權
 ```

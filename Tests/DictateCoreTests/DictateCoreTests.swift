@@ -188,7 +188,7 @@ import Testing
         var s = DictateSettings()
         s.providerID = "openrouter"; s.baseURL = ProviderPreset.openRouter.baseURL
         s.model = "openai/gpt-transcribe"; s.mode = .toggle; s.trigger = .rightOption
-        s.convertToTraditional = false; s.language = "zh"
+        s.convertToTraditional = false; s.language = "zh"; s.playSounds = false
         #expect(Support.roundTrip(s).loaded == s)
         #expect(s.keychainAccount == "openrouter.ai")
     }
@@ -209,5 +209,28 @@ import Testing
         #expect(shortcuts["x"] == "cut:")
         #expect(shortcuts["a"] == "selectAll:")
         #expect(shortcuts["z"] == "undo:")
+    }
+}
+
+@Suite struct HistoryTests {
+    @Test func newestFirstAndCapped() {
+        var h = TranscriptHistory(capacity: 3)
+        for t in ["一", "二", "三", "四"] { h.add(t) }
+        #expect(h.entries.map(\.text) == ["四", "三", "二"])
+    }
+
+    @Test func blankIsIgnoredAndTextTrimmed() {
+        var h = TranscriptHistory()
+        h.add("  \n ")
+        h.add("  你好 \n")
+        #expect(h.entries.map(\.text) == ["你好"])
+        h.clear()
+        #expect(h.entries.isEmpty)
+    }
+
+    @Test func menuTitleIsOneShortLine() {
+        #expect(TranscriptHistory.title(for: "第一行\n第二行") == "第一行 第二行")
+        #expect(TranscriptHistory.title(for: "abcdef", limit: 3) == "abc…")
+        #expect(TranscriptHistory.title(for: "abc", limit: 3) == "abc")
     }
 }

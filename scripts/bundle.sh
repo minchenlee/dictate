@@ -22,6 +22,20 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN/Dictate" "$APP/Contents/MacOS/Dictate"
 
+# App icon from the committed master (regenerate with: swift scripts/make-icon.swift).
+ICON_SRC="Resources/AppIcon-1024.png"
+ICON_KEY=""
+if [ -f "$ICON_SRC" ]; then
+  SET="$(mktemp -d)/AppIcon.iconset"
+  mkdir -p "$SET"
+  for sz in 16 32 128 256 512; do
+    sips -z $sz $sz "$ICON_SRC" --out "$SET/icon_${sz}x${sz}.png" >/dev/null
+    sips -z $((sz*2)) $((sz*2)) "$ICON_SRC" --out "$SET/icon_${sz}x${sz}@2x.png" >/dev/null
+  done
+  iconutil -c icns "$SET" -o "$APP/Contents/Resources/AppIcon.icns"
+  ICON_KEY="  <key>CFBundleIconFile</key><string>AppIcon</string>"
+fi
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -38,6 +52,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>
+$ICON_KEY
   <key>NSMicrophoneUsageDescription</key><string>Dictate 需要麥克風來錄下你的語音並轉成文字。</string>
 </dict>
 </plist>

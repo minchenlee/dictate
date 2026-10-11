@@ -30,6 +30,7 @@ public struct DictateSettings: Equatable, Sendable {
     public var mode: RecordingMode = .hold
     public var trigger: TriggerKey = .rightCommand
     public var convertToTraditional: Bool = true
+    public var playSounds: Bool = true
 
     public init() {}
 
@@ -41,6 +42,7 @@ public struct DictateSettings: Equatable, Sendable {
     enum Key {
         static let provider = "provider", baseURL = "baseURL", model = "model", language = "language"
         static let prompt = "prompt", mode = "mode", trigger = "trigger", convert = "convertToTraditional"
+        static let sounds = "playSounds"
     }
 
     public static func load(from defaults: UserDefaults) -> DictateSettings {
@@ -53,6 +55,7 @@ public struct DictateSettings: Equatable, Sendable {
         if let v = defaults.string(forKey: Key.mode).flatMap(RecordingMode.init(rawValue:)) { s.mode = v }
         if let v = defaults.string(forKey: Key.trigger).flatMap(TriggerKey.init(rawValue:)) { s.trigger = v }
         if defaults.object(forKey: Key.convert) != nil { s.convertToTraditional = defaults.bool(forKey: Key.convert) }
+        if defaults.object(forKey: Key.sounds) != nil { s.playSounds = defaults.bool(forKey: Key.sounds) }
         return s
     }
 
@@ -65,5 +68,6 @@ public struct DictateSettings: Equatable, Sendable {
         defaults.set(mode.rawValue, forKey: Key.mode)
         defaults.set(trigger.rawValue, forKey: Key.trigger)
         defaults.set(convertToTraditional, forKey: Key.convert)
+        defaults.set(playSounds, forKey: Key.sounds)
     }
 }

@@ -4,20 +4,20 @@ import DictateCore
 import SwiftUI
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var settings = DictateSettings.load(from: .standard)
     private var machine = HotkeyMachine(mode: .hold)
     private var monitor: HotkeyMonitor!
     private let recorder = Recorder()
     private let hud = HUD()
     private var statusItem: NSStatusItem!
-    private var settingsWindow: NSWindow?
+    private var settingsWindow: SettingsWindowController?
     private var axPoll: Timer?
     private var maxDurationWork: DispatchWorkItem?
     /// Last queued transcription. Each new one waits for it, so text lands in speaking order.
     private var pending: Task<Void, Never>?
     private var inFlight = 0
-    private var lastTranscript: String?
+    private var history = TranscriptHistory(capacity: 10)
 
     /// Recordings shorter than this, or quieter than `silenceDB`, are dropped.
     private let minDuration: TimeInterval = 0.4
@@ -30,7 +30,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         machine.mode = settings.mode
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         setIcon(.idle)
-        rebuildMenu()
+        let menu = NSMenu()
+        menu.delegate = self
+        statusItem.menu = menu
+        recorder.onLevel = { [weak self] level in self?.hud.level(level) }
 
         monitor = HotkeyMonitor(trigger: settings.trigger) { [weak self] event in
             self?.handle(event)
@@ -70,6 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hud.show(.message(error.localizedDescription), autoHide: 2.5)
             return
         }
+        play("Tink")
         setIcon(.recording)
         hud.show(.recording)
         let work = DispatchWorkItem { [weak self] in
@@ -108,6 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             language: settings.language,
             prompt: settings.prompt)
         let convert = settings.convertToTraditional
+        play("Pop")
         setIcon(.busy)
         hud.show(.transcribing)
         inFlight += 1
@@ -136,8 +141,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func finish(_ text: String) {
         settleIndicators()
         guard !text.isEmpty else { return }
-        lastTranscript = text
-        rebuildMenu()
+        history.add(text)
         TextInserter.insert(text)
     }
 
@@ -166,7 +170,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard AXIsProcessTrusted() else { return }
                 timer.invalidate()
                 self?.monitor.start()
-                self?.rebuildMenu()
             }
         }
     }
@@ -190,55 +193,96 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func rebuildMenu() {
-        let menu = NSMenu()
-        let modeText = settings.mode == .hold ? "按住 \(settings.trigger.label) 說話" : "按一下 \(settings.trigger.label) 開始／結束"
-        menu.addItem(withTitle: modeText, action: nil, keyEquivalent: "").isEnabled = false
-        if !AXIsProcessTrusted() {
-            menu.addItem(withTitle: "⚠︎ 需要輔助使用權限…", action: #selector(openSettings), keyEquivalent: "").target = self
-        }
-        if let last = lastTranscript {
-            menu.addItem(.separator())
-            let preview = last.count > 40 ? String(last.prefix(40)) + "…" : last
-            let item = menu.addItem(withTitle: "複製上一次：\(preview)", action: #selector(copyLast), keyEquivalent: "")
-            item.target = self
-        }
-        menu.addItem(.separator())
-        menu.addItem(withTitle: "設定…", action: #selector(openSettings), keyEquivalent: ",").target = self
-        menu.addItem(withTitle: "結束 Dictate", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        statusItem.menu = menu
+    private func play(_ name: String) {
+        guard settings.playSounds, let sound = NSSound(named: NSSound.Name(name))?.copy() as? NSSound else { return }
+        sound.volume = 0.25
+        sound.play()
     }
 
-    @objc private func copyLast() {
-        guard let last = lastTranscript else { return }
+    /// Rebuilt every time it opens, so permission state and history are always current.
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+
+        let hint = settings.mode == .hold ? "按住\(settings.trigger.label)說話" : "按一下\(settings.trigger.label)開始或送出"
+        let status = NSMenuItem(title: hint, action: nil, keyEquivalent: "")
+        status.image = symbol("mic")
+        status.isEnabled = false
+        menu.addItem(status)
+
+        if !AXIsProcessTrusted() {
+            let warn = item("需要「輔助使用」權限…", "exclamationmark.triangle", #selector(openSettings))
+            menu.addItem(warn)
+        }
+
+        menu.addItem(.separator())
+        let recent = NSMenuItem(title: "最近的轉錄", action: nil, keyEquivalent: "")
+        recent.image = symbol("clock.arrow.circlepath")
+        let sub = NSMenu()
+        if history.entries.isEmpty {
+            let empty = NSMenuItem(title: "沒有紀錄", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            sub.addItem(empty)
+        } else {
+            sub.addItem(.sectionHeader(title: "按一下拷貝"))
+            for (index, entry) in history.entries.enumerated() {
+                let row = NSMenuItem(title: TranscriptHistory.title(for: entry.text), action: #selector(copyEntry(_:)), keyEquivalent: "")
+                row.target = self
+                row.tag = index
+                row.toolTip = entry.text
+                if index < 9 {
+                    row.keyEquivalent = "\(index + 1)"
+                    row.keyEquivalentModifierMask = .command
+                }
+                sub.addItem(row)
+            }
+            sub.addItem(.separator())
+            sub.addItem(item("清除紀錄", "trash", #selector(clearHistory)))
+        }
+        recent.submenu = sub
+        menu.addItem(recent)
+
+        menu.addItem(.separator())
+        menu.addItem(item("設定…", "gearshape", #selector(openSettings), key: ","))
+        menu.addItem(item("結束 Dictate", nil, #selector(NSApplication.terminate(_:)), key: "q", target: NSApp))
+    }
+
+    private func symbol(_ name: String) -> NSImage? {
+        NSImage(systemSymbolName: name, accessibilityDescription: nil)
+    }
+
+    private func item(_ title: String, _ image: String?, _ action: Selector, key: String = "", target: AnyObject? = nil) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+        item.target = target ?? self
+        item.image = image.flatMap(symbol)
+        return item
+    }
+
+    @objc private func copyEntry(_ sender: NSMenuItem) {
+        guard history.entries.indices.contains(sender.tag) else { return }
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(last, forType: .string)
+        NSPasteboard.general.setString(history.entries[sender.tag].text, forType: .string)
+    }
+
+    @objc private func clearHistory() {
+        history.clear()
     }
 
     @objc private func openSettings() {
-        if let window = settingsWindow {
-            NSApp.activate(ignoringOtherApps: true)
-            window.makeKeyAndOrderFront(nil)
-            return
+        if settingsWindow == nil {
+            let model = SettingsModel(settings: settings)
+            model.onChange = { [weak self] new in self?.apply(new) }
+            settingsWindow = SettingsWindowController(model: model)
         }
-        let model = SettingsModel(settings: settings)
-        model.onSave = { [weak self] new in self?.apply(new) }
-        let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(model: model)))
-        window.title = "Dictate 設定"
-        window.styleMask = [.titled, .closable]
-        window.isReleasedWhenClosed = false
-        window.center()
-        settingsWindow = window
-        NSApp.activate(ignoringOtherApps: true)
-        window.makeKeyAndOrderFront(nil)
+        settingsWindow?.show()
     }
 
     private func apply(_ new: DictateSettings) {
+        let old = settings
         settings = new
+        guard new.mode != old.mode || new.trigger != old.trigger else { return }
         if machine.isRecording { cancelRecording() }
         machine = HotkeyMachine(mode: new.mode)
         monitor.trigger = new.trigger
         monitor.start()
-        rebuildMenu()
     }
 }
