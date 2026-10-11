@@ -9,6 +9,18 @@
   Bring your own OpenAI-compatible API key. About 1,800 lines of Swift, no dependencies.
 </p>
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/hud-recording-dark.png">
+    <img src="docs/images/hud-recording-light.png" height="56" alt="Recording HUD with live level meter">
+  </picture>
+  &nbsp;
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/hud-transcribing-dark.png">
+    <img src="docs/images/hud-transcribing-light.png" height="56" alt="Transcribing HUD">
+  </picture>
+</p>
+
 <p align="center"><a href="#繁體中文">繁體中文說明</a></p>
 
 ---
@@ -70,6 +82,7 @@ If you start a new take while the previous one is still transcribing, results ar
 swift build
 swift run DictateChecks          # unit tests (swift-testing), headless
 swift scripts/make-icon.swift    # regenerate Resources/AppIcon-1024.png
+DICTATE_SCREENSHOTS=docs/images .build/debug/Dictate   # re-render the HUD images offscreen
 ```
 
 Tests run as an executable because `swift test` under Command Line Tools 6.2 exits without running swift-testing suites.

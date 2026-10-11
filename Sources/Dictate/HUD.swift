@@ -62,6 +62,14 @@ final class HUD {
         model.levels.append(CGFloat(value))
     }
 
+    /// A detached pill view for screenshot mode.
+    static func snapshotView(_ status: Status, levels: [CGFloat] = []) -> NSView {
+        let model = Model()
+        model.status = status
+        if levels.count == barCount { model.levels = levels }
+        return NSHostingView(rootView: PillView(model: model))
+    }
+
     func hide() {
         hideWork?.cancel()
         guard panel.isVisible else { return }

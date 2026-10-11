@@ -29,6 +29,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        if Screenshots.runIfRequested() {
+            NSApp.terminate(nil)
+            return
+        }
         NSApp.mainMenu = MainMenu.make()
         machine.mode = settings.mode
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
