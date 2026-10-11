@@ -11,13 +11,8 @@
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/hud-recording-dark.png">
-    <img src="docs/images/hud-recording-light.png" height="56" alt="Recording HUD with live level meter">
-  </picture>
-  &nbsp;
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/hud-transcribing-dark.png">
-    <img src="docs/images/hud-transcribing-light.png" height="56" alt="Transcribing HUD">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/scene-dark.png">
+    <img src="docs/images/scene-light.png" width="720" alt="A document with text already typed, the caret at the end, and the Dictate recording HUD with a live level meter below it">
   </picture>
 </p>
 
@@ -88,7 +83,7 @@ If you start a new take while the previous one is still transcribing, results ar
 swift build
 swift run DictateChecks          # unit tests (swift-testing), headless
 swift scripts/make-icon.swift    # regenerate Resources/AppIcon-1024.png
-DICTATE_SCREENSHOTS=docs/images build/Dictate.app/Contents/MacOS/Dictate   # re-render the HUD images offscreen
+DICTATE_SCREENSHOTS=docs/images build/Dictate.app/Contents/MacOS/Dictate   # re-render the HUD and scene images offscreen
 ```
 
 Tests run as an executable because `swift test` under Command Line Tools 6.2 exits without running swift-testing suites.
