@@ -1,8 +1,8 @@
 import Foundation
 
 /// Simplified → Traditional (Taiwan) conversion that leaves code and URLs alone.
-/// Same approach as the claude-mods s2t-input plugin: mask protected spans with
-/// private-use placeholders, convert the rest with `opencc -c s2twp`, then restore.
+/// Masks protected spans with private-use placeholders, converts the rest with
+/// `opencc -c s2twp`, then restores the spans.
 public enum ChineseConverter {
     private static let open: Character = "\u{E000}"
     private static let close: Character = "\u{E001}"

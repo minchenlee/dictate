@@ -1,31 +1,104 @@
-# Dictate
+<p align="center">
+  <img src="Resources/AppIcon-1024.png" width="128" alt="Dictate icon">
+</p>
 
-輕量的 macOS 選單列語音輸入 app。按住右 ⌘ 說話，放開後文字會出現在游標所在的輸入框。
+<h1 align="center">Dictate</h1>
 
-## 功能
-- 觸發鍵：右 ⌘／⌥／⌃／⇧ 單鍵。模式：按住說話（預設），或按一下開始、再按一下送出。錄音中按 Esc 取消。
-- 轉錄：任何 OpenAI 相容的 `POST {base}/audio/transcriptions`。內建 OpenAI（`gpt-transcribe`）和 OpenRouter（`openai/gpt-transcribe`）預設，也可自訂 base URL。
-- API key 存在 Keychain（service `dev.mclee.dictate`，每個 API host 一把）。
-- 簡轉繁：有安裝 `opencc`（`brew install opencc`）就用 `s2twp` 轉換，程式碼與網址不轉。
-- 插入：剪貼簿＋⌘V，0.5 秒後還原原本的剪貼簿。
-- 歷史紀錄：選單列「最近的轉錄」保留 10 筆，點一下拷貝（⌘1–⌘9）。只存在記憶體，結束 app 就清空。
-- 登入時自動開啟（`SMAppService`）。建議把 app 放到「應用程式」資料夾再打開這個選項。
-- 錄音提示：畫面下方的毛玻璃膠囊，顯示即時音量；開始與結束時有系統提示音（可關）。
+<p align="center">
+  A tiny macOS menu bar app: hold a key, speak, and the text appears wherever your cursor is.<br>
+  Bring your own OpenAI-compatible API key. About 1,800 lines of Swift, no dependencies.
+</p>
 
-## 權限
-- 麥克風：錄音。
-- 輔助使用：監聽觸發鍵、送出 ⌘V。
+<p align="center"><a href="#繁體中文">繁體中文說明</a></p>
 
-## 開發
+---
+
+## Features
+
+- **Push to talk, anywhere.** Hold right ⌘ (default), speak, release. The transcript is pasted into the focused text field of any app, and your clipboard is restored afterwards.
+- **Your trigger.** Any single modifier (left/right ⌘ ⌥ ⌃ ⇧, or Fn/🌐), or a recorded key combo such as ⌥Space. Hold-to-talk or tap-to-toggle. Esc cancels.
+- **Any OpenAI-compatible endpoint.** Presets for OpenAI (`gpt-transcribe`) and OpenRouter (`openai/gpt-transcribe`), or set your own base URL and model (Groq, a local server, …). It calls `POST {base}/audio/transcriptions`.
+- **Keys in the Keychain.** One key per API host, so switching providers keeps both.
+- **Traditional Chinese friendly.** Optional Simplified → Traditional (Taiwan) conversion with [OpenCC](https://github.com/BYVoid/OpenCC) `s2twp`, leaving code and URLs untouched.
+- **Native and quiet.** Menu bar icon, a small vibrancy HUD with a live level meter, toolbar-style settings, optional system sounds, launch at login.
+- **Recent transcripts.** The last 10 are in the menu (⌘1–⌘9 to copy). Memory only; nothing is written to disk.
+
+Dictate does no AI rewriting, no local models, and no accounts. Audio goes to the endpoint you configure and nowhere else.
+
+## Requirements
+
+- macOS 14 or later
+- Swift 6.2 (Xcode or Command Line Tools)
+- An API key for OpenAI, OpenRouter, or another OpenAI-compatible transcription endpoint
+- Optional: `brew install opencc` for Simplified → Traditional conversion
+
+## Build and run
+
 ```sh
-swift run DictateChecks           # 純邏輯測試（headless）。CLT 6.2 的 swift test 會靜默跑 0 個測試，所以改用這個 runner
-swift scripts/make-icon.swift    # 重新產生 Resources/AppIcon-1024.png
-scripts/bundle.sh                # 產生 build/Dictate.app，自動用鑰匙圈裡的 Apple Development 憑證簽名
-SIGN_ID=- scripts/bundle.sh      # 強制 ad-hoc（每次重 build 都要重新授權「輔助使用」）
+git clone https://github.com/minchenlee/dictate.git
+cd dictate
+scripts/bundle.sh          # builds build/Dictate.app
+open build/Dictate.app
 ```
-重的 build 請用 `slot run <name> "bundle" -- scripts/bundle.sh`。
 
-## 結構
-- `Sources/DictateCore`：可測的純邏輯：快捷鍵狀態機、multipart 請求與回應解析、簡轉繁遮罩、設定。
-- `Tests/DictateCoreTests`：swift-testing 測試，以 `DictateChecks` 執行檔執行。
-- `Sources/Dictate`：AppKit 層：選單列、HUD、錄音、全域監聽、貼上、Keychain、設定視窗。
+`bundle.sh` signs with the first "Apple Development" identity in your keychain, if any, otherwise ad-hoc. A stable identity matters: with ad-hoc signing every rebuild gets a new code identity, macOS silently stops honouring the Accessibility grant, and pasting stops working. Override with `SIGN_ID="<identity>"`, or force ad-hoc with `SIGN_ID=-`.
+
+To keep it around, copy `Dictate.app` to `/Applications` before you turn on "Launch at login".
+
+## Permissions
+
+| Permission | Why |
+|---|---|
+| Microphone | Record your voice. |
+| Accessibility | Detect a single-modifier trigger, and post ⌘V to paste. |
+
+Without Accessibility the transcript stays on the clipboard and Dictate tells you to press ⌘V yourself.
+
+## How it works
+
+1. The trigger starts `AVAudioRecorder` (16 kHz mono AAC).
+2. On release, very short or silent takes are dropped. Transcription models tend to invent text for silence.
+3. The audio is sent as `multipart/form-data` to `{base}/audio/transcriptions`.
+4. If enabled and OpenCC is installed, the text is converted to Traditional Chinese.
+5. The text is placed on the pasteboard (marked transient for clipboard managers), ⌘V is posted, and the previous pasteboard is restored.
+
+If you start a new take while the previous one is still transcribing, results are pasted in the order you spoke.
+
+## Development
+
+```sh
+swift build
+swift run DictateChecks          # unit tests (swift-testing), headless
+swift scripts/make-icon.swift    # regenerate Resources/AppIcon-1024.png
+```
+
+Tests run as an executable because `swift test` under Command Line Tools 6.2 exits without running swift-testing suites.
+
+| Path | Contents |
+|---|---|
+| `Sources/DictateCore` | Pure logic: hotkey state machine, triggers, request building and parsing, Chinese conversion, settings, history. |
+| `Sources/Dictate` | AppKit/SwiftUI: menu bar, HUD, recorder, global hotkeys, paste, Keychain, settings window. |
+| `Tests/DictateCoreTests` | swift-testing suites, run by `DictateChecks`. |
+
+## Alternatives
+
+Dictation apps are a crowded space. If you want local models, AI cleanup, or cross-platform support, look at [Handy](https://github.com/cjpais/Handy), [VoiceInk](https://github.com/Beingpax/VoiceInk), [OpenWhispr](https://github.com/OpenWhispr/openwhispr), or [FreeFlow](https://github.com/zachlatta/freeflow). Dictate is the small, cloud-only, read-it-in-an-afternoon option.
+
+## License
+
+[MIT](LICENSE)
+
+---
+
+## 繁體中文
+
+Dictate 是一個很小的 macOS 選單列語音輸入 app：按住右 ⌘ 說話，放開後文字就貼到游標所在的輸入框。
+
+- 觸發鍵可以選任一修飾鍵（左右 ⌘⌥⌃⇧、Fn），或錄一組組合鍵（例如 ⌥Space）。模式有「按住說話」和「按一下切換」。按 Esc 取消。
+- 轉錄走任何 OpenAI 相容的 API。內建 OpenAI（`gpt-transcribe`）和 OpenRouter 預設，也可以自訂 base URL。
+- API key 存在「鑰匙圈」。
+- 有安裝 `opencc` 時，會把簡體轉成台灣繁體用語，程式碼和網址不轉。
+- 選單列保留最近 10 筆轉錄，只放在記憶體。
+- 需要「麥克風」和「輔助使用」兩個權限。
+
+建置：`scripts/bundle.sh`，然後 `open build/Dictate.app`。

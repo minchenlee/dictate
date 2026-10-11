@@ -5,7 +5,6 @@
 # identity every time, and macOS then drops Accessibility silently (⌘V stops
 # working while System Settings still shows the toggle on).
 # Override: SIGN_ID="<identity>" scripts/bundle.sh ; force ad-hoc: SIGN_ID=- scripts/bundle.sh
-# Heavy: run via `slot run gh-dictate-orch "bundle" -- scripts/bundle.sh`.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -17,7 +16,6 @@ if [ -z "${SIGN_ID:-}" ]; then
   SIGN_ID="${SIGN_ID:--}"
 fi
 
-command -v disk-guard >/dev/null && { disk-guard 5 || { echo "low disk"; exit 1; }; }
 VERSION="${VERSION:-0.1.0}"
 BUILD_NUMBER="${BUILD_NUMBER:-1}"
 
