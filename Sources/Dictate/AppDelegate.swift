@@ -26,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        NSApp.mainMenu = MainMenu.make()
         machine.mode = settings.mode
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         setIcon(.idle)

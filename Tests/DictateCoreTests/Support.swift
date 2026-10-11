@@ -42,3 +42,22 @@ enum Support {
         return (fresh, DictateSettings.load(from: defaults))
     }
 }
+
+import AppKit
+
+extension Support {
+    /// ⌘-key → action selector name for every item in the app's main menu.
+    @MainActor static func editShortcuts() -> [String: String] {
+        var out: [String: String] = [:]
+        func walk(_ menu: NSMenu) {
+            for item in menu.items {
+                if let sub = item.submenu { walk(sub) }
+                if let action = item.action, item.keyEquivalentModifierMask == .command {
+                    out[item.keyEquivalent] = NSStringFromSelector(action)
+                }
+            }
+        }
+        walk(MainMenu.make())
+        return out
+    }
+}

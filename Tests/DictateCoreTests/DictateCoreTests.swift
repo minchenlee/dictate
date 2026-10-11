@@ -199,3 +199,15 @@ import Testing
         #expect(s.language.isEmpty && s.convertToTraditional)
     }
 }
+
+@Suite struct EditMenuTests {
+    // Menu-bar-only apps have no main menu by default, so ⌘V/⌘C/⌘A in text fields do nothing.
+    @Test @MainActor func mainMenuRoutesStandardEditShortcuts() {
+        let shortcuts = Support.editShortcuts()
+        #expect(shortcuts["v"] == "paste:")
+        #expect(shortcuts["c"] == "copy:")
+        #expect(shortcuts["x"] == "cut:")
+        #expect(shortcuts["a"] == "selectAll:")
+        #expect(shortcuts["z"] == "undo:")
+    }
+}
