@@ -90,6 +90,8 @@ final class SettingsWindowController: NSWindowController {
         func add<V: View>(_ title: String, _ symbol: String, _ view: V) {
             let host = NSHostingController(rootView: view)
             host.sizingOptions = [.preferredContentSize]
+            // NSTabViewController shows the selected child's title as the window title.
+            host.title = title
             let item = NSTabViewItem(viewController: host)
             item.label = title
             item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
