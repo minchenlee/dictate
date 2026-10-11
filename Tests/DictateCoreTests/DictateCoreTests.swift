@@ -184,11 +184,14 @@ import Testing
 
 @Suite struct SettingsTests {
     @Test func roundTrip() {
-        #expect(Support.roundTrip(nil).fresh == DictateSettings())
+        var expected = DictateSettings()
+        expected.prompt = DictateSettings.defaultPrompt(for: Localizer.resolve(.system))
+        #expect(Support.roundTrip(nil).fresh == expected)
         var s = DictateSettings()
         s.providerID = "openrouter"; s.baseURL = ProviderPreset.openRouter.baseURL
         s.model = "openai/gpt-transcribe"; s.mode = .toggle; s.trigger = .rightOption
         s.convertToTraditional = false; s.language = "zh"; s.playSounds = false
+        s.uiLanguage = .traditionalChinese; s.prompt = ""
         #expect(Support.roundTrip(s).loaded == s)
         #expect(s.keychainAccount == "openrouter.ai")
     }
@@ -300,5 +303,39 @@ import Testing
         #expect(Set(TriggerKey.allCases.map(\.keyCode)).count == TriggerKey.allCases.count)
         #expect(Set(TriggerKey.allCases.map(\.deviceMask)).count == TriggerKey.allCases.count)
         #expect(TriggerKey.leftCommand.isBusy && !TriggerKey.rightCommand.isBusy && !TriggerKey.fn.isBusy)
+    }
+}
+
+@Suite struct LocalizationTests {
+    @Test func resolvesSystemLanguage() {
+        #expect(Localizer.resolve(.system, preferred: ["zh-Hant-TW", "en-US"]) == "zh-Hant")
+        #expect(Localizer.resolve(.system, preferred: ["zh-Hans-CN"]) == "zh-Hant")
+        #expect(Localizer.resolve(.system, preferred: ["en-GB", "zh-Hant"]) == "en")
+        #expect(Localizer.resolve(.system, preferred: ["ja-JP"]) == "en")
+        #expect(Localizer.resolve(.english, preferred: ["zh-Hant"]) == "en")
+        #expect(Localizer.resolve(.traditionalChinese, preferred: ["en"]) == "zh-Hant")
+    }
+
+    @Test func defaultPromptFollowsLanguage() {
+        #expect(DictateSettings.defaultPrompt(for: "en").isEmpty)
+        #expect(!DictateSettings.defaultPrompt(for: "zh-Hant").isEmpty)
+    }
+
+    @Test func everyKeyIsTranslated() throws {
+        let table = Support.table("zh-Hant")
+        let keys = Support.localizedKeys()
+        #expect(keys.count > 50)
+        let brands: Set = ["OpenAI", "OpenRouter"] // same in every language
+        let missing = keys.subtracting(table.keys).subtracting(brands).sorted()
+        #expect(missing.isEmpty, "untranslated: \(missing)")
+        let unused = Set(table.keys).subtracting(keys).sorted()
+        #expect(unused.isEmpty, "unused: \(unused)")
+        for (key, value) in table {
+            #expect(Support.placeholders(key) == Support.placeholders(value), "placeholders differ: \(key)")
+        }
+    }
+
+    @Test func noChineseLiteralsInSources() {
+        #expect(Support.chineseLiterals().isEmpty, "\(Support.chineseLiterals())")
     }
 }

@@ -6,7 +6,7 @@
 
 <p align="center">
   A tiny macOS menu bar app: hold a key, speak, and the text appears wherever your cursor is.<br>
-  Bring your own OpenAI-compatible API key. About 1,800 lines of Swift, no dependencies.
+  Bring your own OpenAI-compatible API key. About 2,000 lines of Swift, no dependencies.
 </p>
 
 <p align="center">
@@ -33,6 +33,7 @@
 - **Keys in the Keychain.** One key per API host, so switching providers keeps both.
 - **Traditional Chinese friendly.** Optional Simplified → Traditional (Taiwan) conversion with [OpenCC](https://github.com/BYVoid/OpenCC) `s2twp`, leaving code and URLs untouched.
 - **Native and quiet.** Menu bar icon, a small vibrancy HUD with a live level meter, toolbar-style settings, optional system sounds, launch at login.
+- **English or 繁體中文 UI.** Follows the system language, or pick one in Settings › General › Language. The change applies right away.
 - **Recent transcripts.** The last 10 are in the menu (⌘1–⌘9 to copy). Memory only; nothing is written to disk.
 
 Dictate does no AI rewriting, no local models, and no accounts. Audio goes to the endpoint you configure and nowhere else.
@@ -82,7 +83,7 @@ If you start a new take while the previous one is still transcribing, results ar
 swift build
 swift run DictateChecks          # unit tests (swift-testing), headless
 swift scripts/make-icon.swift    # regenerate Resources/AppIcon-1024.png
-DICTATE_SCREENSHOTS=docs/images .build/debug/Dictate   # re-render the HUD images offscreen
+DICTATE_SCREENSHOTS=docs/images build/Dictate.app/Contents/MacOS/Dictate   # re-render the HUD images offscreen
 ```
 
 Tests run as an executable because `swift test` under Command Line Tools 6.2 exits without running swift-testing suites.
@@ -91,6 +92,7 @@ Tests run as an executable because `swift test` under Command Line Tools 6.2 exi
 |---|---|
 | `Sources/DictateCore` | Pure logic: hotkey state machine, triggers, request building and parsing, Chinese conversion, settings, history. |
 | `Sources/Dictate` | AppKit/SwiftUI: menu bar, HUD, recorder, global hotkeys, paste, Keychain, settings window. |
+| `Resources/Localization` | UI strings. Keys are the English text; `zh-Hant.lproj` holds the translations. A check fails when a key is untranslated. |
 | `Tests/DictateCoreTests` | swift-testing suites, run by `DictateChecks`. |
 
 ## Alternatives
@@ -112,6 +114,7 @@ Dictate 是一個很小的 macOS 選單列語音輸入 app：按住右 ⌘ 說�
 - API key 存在「鑰匙圈」。
 - 有安裝 `opencc` 時，會把簡體轉成台灣繁體用語，程式碼和網址不轉。
 - 選單列保留最近 10 筆轉錄，只放在記憶體。
+- 介面有英文和繁體中文。預設跟隨系統語言，也可以在「設定 › 一般 › 語言」切換，立即生效。
 - 需要「麥克風」和「輔助使用」兩個權限。
 
 建置：`scripts/bundle.sh`，然後 `open build/Dictate.app`。

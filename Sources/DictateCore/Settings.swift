@@ -2,15 +2,17 @@ import Foundation
 
 public struct ProviderPreset: Equatable, Sendable, Identifiable {
     public let id: String
-    public let name: String
+    /// English name; shown through `L` so "Custom" is translated.
+    public let nameKey: String
+    public var name: String { L(nameKey) }
     public let baseURL: String
     public let defaultModel: String
 
     public static let openAI = ProviderPreset(
-        id: "openai", name: "OpenAI", baseURL: "https://api.openai.com/v1", defaultModel: "gpt-transcribe")
+        id: "openai", nameKey: "OpenAI", baseURL: "https://api.openai.com/v1", defaultModel: "gpt-transcribe")
     public static let openRouter = ProviderPreset(
-        id: "openrouter", name: "OpenRouter", baseURL: "https://openrouter.ai/api/v1", defaultModel: "openai/gpt-transcribe")
-    public static let custom = ProviderPreset(id: "custom", name: "自訂", baseURL: "", defaultModel: "")
+        id: "openrouter", nameKey: "OpenRouter", baseURL: "https://openrouter.ai/api/v1", defaultModel: "openai/gpt-transcribe")
+    public static let custom = ProviderPreset(id: "custom", nameKey: "Custom", baseURL: "", defaultModel: "")
 
     public static let all: [ProviderPreset] = [.openAI, .openRouter, .custom]
 
@@ -26,7 +28,8 @@ public struct DictateSettings: Equatable, Sendable {
     public var model: String = ProviderPreset.openAI.defaultModel
     /// ISO-639-1 code, or empty for auto-detect.
     public var language: String = ""
-    public var prompt: String = "以下是繁體中文的口述，可能夾雜英文詞彙。"
+    /// Context hint sent with the audio. A fresh install gets `defaultPrompt(for:)`.
+    public var prompt: String = ""
     public var mode: RecordingMode = .hold
     public var triggerKind: TriggerKind = .modifier
     /// Used when `triggerKind == .modifier`.
@@ -35,8 +38,14 @@ public struct DictateSettings: Equatable, Sendable {
     public var combo: KeyCombo? = nil
     public var convertToTraditional: Bool = true
     public var playSounds: Bool = true
+    public var uiLanguage: AppLanguage = .system
 
     public init() {}
+
+    /// Nudges the model toward Traditional Chinese for Chinese users; English needs no hint.
+    public static func defaultPrompt(for languageCode: String) -> String {
+        languageCode == "zh-Hant" ? "以下是繁體中文的口述，可能夾雜英文詞彙。" : ""
+    }
 
     /// The trigger in effect. A combo kind without a recorded combo falls back to the modifier key.
     public var activeTrigger: Trigger {
@@ -52,7 +61,7 @@ public struct DictateSettings: Equatable, Sendable {
     enum Key {
         static let provider = "provider", baseURL = "baseURL", model = "model", language = "language"
         static let prompt = "prompt", mode = "mode", trigger = "trigger", convert = "convertToTraditional"
-        static let sounds = "playSounds", triggerKind = "triggerKind"
+        static let sounds = "playSounds", triggerKind = "triggerKind", uiLanguage = "uiLanguage"
         static let comboKeyCode = "comboKeyCode", comboModifiers = "comboModifiers", comboLabel = "comboLabel"
     }
 
@@ -62,11 +71,12 @@ public struct DictateSettings: Equatable, Sendable {
         if let v = defaults.string(forKey: Key.baseURL) { s.baseURL = v }
         if let v = defaults.string(forKey: Key.model) { s.model = v }
         if let v = defaults.string(forKey: Key.language) { s.language = v }
-        if let v = defaults.string(forKey: Key.prompt) { s.prompt = v }
         if let v = defaults.string(forKey: Key.mode).flatMap(RecordingMode.init(rawValue:)) { s.mode = v }
         if let v = defaults.string(forKey: Key.trigger).flatMap(TriggerKey.init(rawValue:)) { s.trigger = v }
         if defaults.object(forKey: Key.convert) != nil { s.convertToTraditional = defaults.bool(forKey: Key.convert) }
         if defaults.object(forKey: Key.sounds) != nil { s.playSounds = defaults.bool(forKey: Key.sounds) }
+        if let v = defaults.string(forKey: Key.uiLanguage).flatMap(AppLanguage.init(rawValue:)) { s.uiLanguage = v }
+        s.prompt = defaults.string(forKey: Key.prompt) ?? defaultPrompt(for: Localizer.resolve(s.uiLanguage))
         if let v = defaults.string(forKey: Key.triggerKind).flatMap(TriggerKind.init(rawValue:)) { s.triggerKind = v }
         if defaults.object(forKey: Key.comboKeyCode) != nil, let label = defaults.string(forKey: Key.comboLabel) {
             s.combo = KeyCombo(
@@ -88,6 +98,7 @@ public struct DictateSettings: Equatable, Sendable {
         defaults.set(convertToTraditional, forKey: Key.convert)
         defaults.set(playSounds, forKey: Key.sounds)
         defaults.set(triggerKind.rawValue, forKey: Key.triggerKind)
+        defaults.set(uiLanguage.rawValue, forKey: Key.uiLanguage)
         if let combo {
             defaults.set(Int(combo.keyCode), forKey: Key.comboKeyCode)
             defaults.set(Int(combo.modifiers.rawValue), forKey: Key.comboModifiers)

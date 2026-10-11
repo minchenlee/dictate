@@ -43,11 +43,16 @@ if [ -f "$ICON_SRC" ]; then
   ICON_KEY="  <key>CFBundleIconFile</key><string>AppIcon</string>"
 fi
 
+# UI translations (keys are English; zh-Hant.lproj holds Traditional Chinese).
+cp -R Resources/Localization/*.lproj "$APP/Contents/Resources/"
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleLocalizations</key><array><string>en</string><string>zh-Hant</string></array>
   <key>CFBundleIdentifier</key><string>dev.mclee.dictate</string>
   <key>CFBundleName</key><string>Dictate</string>
   <key>CFBundleDisplayName</key><string>Dictate</string>
@@ -60,7 +65,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>NSHighResolutionCapable</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>
 $ICON_KEY
-  <key>NSMicrophoneUsageDescription</key><string>Dictate 需要麥克風來錄下你的語音並轉成文字。</string>
+  <key>NSMicrophoneUsageDescription</key><string>Dictate uses the microphone to record your voice and turn it into text.</string>
 </dict>
 </plist>
 PLIST

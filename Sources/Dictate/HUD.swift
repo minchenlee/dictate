@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import DictateCore
 
 /// Small floating pill near the bottom of the screen: recording / transcribing / message.
 /// Non-activating and click-through, so it never steals focus from the target field.
@@ -104,7 +105,7 @@ final class HUD {
                     LevelBars(levels: model.levels)
                 case .transcribing:
                     ProgressView().controlSize(.small)
-                    Text("轉錄中")
+                    Text(L("Transcribing"))
                 case .message(let text):
                     Image(systemName: "exclamationmark.triangle.fill")
                         .symbolRenderingMode(.multicolor)

@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        Localizer.language = settings.uiLanguage
         if Screenshots.runIfRequested() {
             NSApp.terminate(nil)
             return
@@ -70,7 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else {
             machine.reset()
             AVCaptureDevice.requestAccess(for: .audio) { _ in }
-            hud.show(.message("需要麥克風權限"), autoHide: 2.5)
+            hud.show(.message(L("Microphone access is needed")), autoHide: 2.5)
             return
         }
         do {
@@ -110,12 +111,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let take = recorder.stop() else { return }
         guard take.duration >= minDuration, take.peakPower > silenceDB else {
             setIcon(.idle)
-            hud.show(.message("沒有聽到聲音"), autoHide: 1.5)
+            hud.show(.message(L("No speech detected")), autoHide: 1.5)
             return
         }
         guard let audio = try? Data(contentsOf: take.url) else {
             setIcon(.idle)
-            hud.show(.message("讀不到錄音檔"), autoHide: 2.5)
+            hud.show(.message(L("Could not read the recording")), autoHide: 2.5)
             return
         }
         let config = TranscriptionConfig(
@@ -156,7 +157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard !text.isEmpty else { return }
         history.add(text)
         if TextInserter.insert(text) == .clipboardOnly {
-            hud.show(.message("沒有「輔助使用」權限，文字已拷貝，請按 ⌘V"), autoHide: 5)
+            hud.show(.message(L("No Accessibility access. Text copied, press ⌘V")), autoHide: 5)
             ensureAccessibility(prompt: false)
         }
     }
@@ -220,27 +221,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.removeAllItems()
 
         let label = settings.activeTrigger.label
-        let hint = settings.mode == .hold ? "按住 \(label) 說話" : "按一下 \(label) 開始或送出"
+        let hint = settings.mode == .hold ? L("Hold %@ to talk", label) : L("Press %@ to start or send", label)
         let status = NSMenuItem(title: hint, action: nil, keyEquivalent: "")
         status.image = symbol("mic")
         status.isEnabled = false
         menu.addItem(status)
 
         if !AXIsProcessTrusted() {
-            let warn = item("需要「輔助使用」權限…", "exclamationmark.triangle", #selector(openSettings))
+            let warn = item(L("Accessibility access needed…"), "exclamationmark.triangle", #selector(openSettings))
             menu.addItem(warn)
         }
 
         menu.addItem(.separator())
-        let recent = NSMenuItem(title: "最近的轉錄", action: nil, keyEquivalent: "")
+        let recent = NSMenuItem(title: L("Recent Transcripts"), action: nil, keyEquivalent: "")
         recent.image = symbol("clock.arrow.circlepath")
         let sub = NSMenu()
         if history.entries.isEmpty {
-            let empty = NSMenuItem(title: "沒有紀錄", action: nil, keyEquivalent: "")
+            let empty = NSMenuItem(title: L("No Transcripts"), action: nil, keyEquivalent: "")
             empty.isEnabled = false
             sub.addItem(empty)
         } else {
-            sub.addItem(.sectionHeader(title: "按一下拷貝"))
+            sub.addItem(.sectionHeader(title: L("Click to Copy")))
             for (index, entry) in history.entries.enumerated() {
                 let row = NSMenuItem(title: TranscriptHistory.title(for: entry.text), action: #selector(copyEntry(_:)), keyEquivalent: "")
                 row.target = self
@@ -253,14 +254,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 sub.addItem(row)
             }
             sub.addItem(.separator())
-            sub.addItem(item("清除紀錄", "trash", #selector(clearHistory)))
+            sub.addItem(item(L("Clear History"), "trash", #selector(clearHistory)))
         }
         recent.submenu = sub
         menu.addItem(recent)
 
         menu.addItem(.separator())
-        menu.addItem(item("設定…", "gearshape", #selector(openSettings), key: ","))
-        menu.addItem(item("結束 Dictate", nil, #selector(NSApplication.terminate(_:)), key: "q", target: NSApp))
+        menu.addItem(item(L("Settings…"), "gearshape", #selector(openSettings), key: ","))
+        menu.addItem(item(L("Quit Dictate"), nil, #selector(NSApplication.terminate(_:)), key: "q", target: NSApp))
     }
 
     private func symbol(_ name: String) -> NSImage? {
@@ -303,16 +304,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         settingsWindow?.show()
     }
 
+    /// SwiftUI views read strings when built, so a language change rebuilds the window in place.
+    private func reopenSettingsWindow() {
+        guard let old = settingsWindow?.window else { return }
+        let origin = old.frame.origin
+        let height = old.frame.height
+        old.close()
+        settingsWindow = nil
+        openSettings()
+        guard let window = settingsWindow?.window else { return }
+        // Keep the top-left corner where it was.
+        window.setFrameOrigin(NSPoint(x: origin.x, y: origin.y + height - window.frame.height))
+    }
+
     private func apply(_ new: DictateSettings) {
         let old = settings
         settings = new
+        if new.uiLanguage != old.uiLanguage {
+            Localizer.language = new.uiLanguage
+            reopenSettingsWindow()
+        }
         guard new.mode != old.mode || new.activeTrigger != old.activeTrigger else { return }
         if machine.isRecording { cancelRecording() }
         machine = HotkeyMachine(mode: new.mode)
         monitor.trigger = new.activeTrigger
         monitor.start()
         if case .combo(let combo) = new.activeTrigger, !monitor.isComboRegistered {
-            hud.show(.message("\(combo.label) 已被其他 app 佔用，請換一組"), autoHide: 4)
+            hud.show(.message(L("%@ is used by another app. Choose another.", combo.label)), autoHide: 4)
         }
     }
 }

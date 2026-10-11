@@ -1,0 +1,95 @@
+/* Dictate — Traditional Chinese. Keys are the English UI text. */
+
+/* Menu bar */
+"Hold %@ to talk" = "按住 %@ 說話";
+"Press %@ to start or send" = "按一下 %@ 開始或送出";
+"Accessibility access needed…" = "需要「輔助使用」權限…";
+"Recent Transcripts" = "最近的轉錄";
+"No Transcripts" = "沒有紀錄";
+"Click to Copy" = "按一下拷貝";
+"Clear History" = "清除紀錄";
+"Settings…" = "設定…";
+"Quit Dictate" = "結束 Dictate";
+
+/* HUD */
+"Transcribing" = "轉錄中";
+"Microphone access is needed" = "需要麥克風權限";
+"No speech detected" = "沒有聽到聲音";
+"Could not read the recording" = "讀不到錄音檔";
+"Could not start recording" = "無法開始錄音";
+"No Accessibility access. Text copied, press ⌘V" = "沒有「輔助使用」權限，文字已拷貝，請按 ⌘V";
+"%@ is used by another app. Choose another." = "%@ 已被其他 app 佔用，請換一組";
+
+/* Errors */
+"The API base URL is not valid" = "API base URL 無效";
+"No API key is set" = "尚未設定 API key";
+"Could not read the transcription result" = "無法解析轉錄結果";
+"Network error: %@" = "網路錯誤：%@";
+"(empty response)" = "（無內容）";
+
+/* Trigger keys */
+"Right ⌘" = "右 ⌘";
+"Right ⌥" = "右 ⌥";
+"Right ⌃" = "右 ⌃";
+"Right ⇧" = "右 ⇧";
+"Left ⌘" = "左 ⌘";
+"Left ⌥" = "左 ⌥";
+"Left ⌃" = "左 ⌃";
+"Left ⇧" = "左 ⇧";
+
+/* Settings: tabs */
+"General" = "一般";
+"Transcription" = "轉錄";
+"Shortcut" = "快捷鍵";
+
+/* Settings: General */
+"Language" = "語言";
+"System" = "跟隨系統";
+"Open at login" = "登入時自動開啟";
+"Allow it in System Settings" = "需要在系統設定中允許";
+"Open Login Items" = "開啟登入項目";
+"Play sounds when recording starts and ends" = "開始與結束錄音時播放提示音";
+"Convert Simplified to Traditional Chinese (Taiwan)" = "簡體轉繁體（台灣用語）";
+"Using %@" = "使用 %@";
+"opencc not found, so text is left as is. Install: brew install opencc" = "找不到 opencc，會輸出原文。安裝：brew install opencc";
+"Permissions" = "權限";
+"Microphone" = "麥克風";
+"Records your voice" = "錄下你的語音";
+"Accessibility" = "輔助使用";
+"Detects the trigger key and pastes text" = "偵測觸發鍵並貼上文字";
+"Allowed" = "已允許";
+"Open System Settings" = "開啟系統設定";
+
+/* Settings: Transcription */
+"Service" = "服務";
+"Custom" = "自訂";
+"API keys are stored in the Keychain, one per service." = "API key 存在「鑰匙圈」，每個服務各存一把。";
+"Model" = "模型";
+"Spoken language" = "語言";
+"Auto-detect" = "自動偵測";
+"Chinese" = "中文";
+"English" = "English";
+"Japanese" = "日本語";
+"Prompt" = "提示詞";
+"Optional" = "選填";
+"For mixed languages, Auto-detect is usually more accurate than a fixed language." = "中英混合時，「自動偵測」通常比固定語言準。";
+
+/* Settings: Shortcut */
+"Trigger" = "觸發方式";
+"Single modifier" = "單一修飾鍵";
+"Key combo" = "組合鍵";
+"Key" = "按鍵";
+"Mode" = "模式";
+"Hold to talk" = "按住說話";
+"Press to toggle" = "按一下切換";
+"Hold %@ and speak. Release to send." = "按住 %@ 說話，放開後送出。";
+"Press %@ to start, press again to send." = "按一下 %@ 開始，再按一下送出。";
+"No combo recorded yet, so %@ is used. Press Esc to cancel a recording." = "還沒錄製組合鍵，暫時使用 %@。錄音中按 Esc 取消。";
+"Press Esc to cancel a recording. If another app uses the combo, nothing happens; choose another." = "錄音中按 Esc 取消。組合鍵被其他 app 佔用時會沒有反應，請換一組。";
+"Fn / 🌐 works only on Apple keyboards. Set System Settings › Keyboard › Press 🌐 key to Do Nothing." = "Fn／🌐 只在 Apple 鍵盤上有效。請把「系統設定 › 鍵盤 › 按下 🌐 鍵時」設為「不執行任何動作」。";
+"Left-side modifiers are common in shortcuts, so accidental presses are likely. Pressed with another key, they do not record. Press Esc to cancel a recording." = "左側修飾鍵常用在快捷鍵，容易誤觸。跟其他鍵一起按時不會錄音。錄音中按 Esc 取消。";
+"Press Esc to cancel a recording. The trigger pressed with another key (such as ⌘C) does not record." = "錄音中按 Esc 取消。觸發鍵跟其他鍵一起按（例如 ⌘C）不會錄音。";
+"Press a combo…" = "請按下組合鍵…";
+"Click to Record" = "按此錄製";
+"Clear combo" = "清除組合鍵";
+"Add ⌘, ⌥, ⌃ or ⇧ (not needed for F1–F20)" = "需要搭配 ⌘、⌥、⌃ 或 ⇧（F1–F20 除外）";

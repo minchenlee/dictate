@@ -43,6 +43,58 @@ enum Support {
     }
 }
 
+extension Support {
+    static let repo = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+
+    static func table(_ code: String) -> [String: String] {
+        Localizer.parse(repo.appendingPathComponent("Resources/Localization/\(code).lproj/Localizable.strings"))
+    }
+
+    static func sources() -> [(path: String, text: String)] {
+        let root = repo.appendingPathComponent("Sources")
+        let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil)?
+            .compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" } ?? []
+        return files.compactMap { url in
+            (try? String(contentsOf: url, encoding: .utf8)).map { (url.lastPathComponent, $0) }
+        }
+    }
+
+    /// String literals passed to `L(`, or given as a `nameKey:` (looked up later), in Sources.
+    static func localizedKeys() -> Set<String> {
+        let regex = try! NSRegularExpression(pattern: #"(?:\bL\(|nameKey: )"((?:[^"\\]|\\.)*)""#)
+        var keys = Set<String>()
+        for (_, text) in sources() {
+            let ns = text as NSString
+            for m in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+                keys.insert(ns.substring(with: m.range(at: 1)))
+            }
+        }
+        return keys
+    }
+
+    static func placeholders(_ s: String) -> Int {
+        s.components(separatedBy: "%@").count - 1
+    }
+
+    /// String literals with CJK text, outside the allowed ones.
+    static func chineseLiterals() -> [String] {
+        let allowed = ["以下是繁體中文的口述，可能夾雜英文詞彙。", "繁體中文"]
+        let regex = try! NSRegularExpression(pattern: #""((?:[^"\\\n]|\\.)*)""#)
+        var out: [String] = []
+        for (path, text) in sources() {
+            let ns = text as NSString
+            for m in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+                let literal = ns.substring(with: m.range(at: 1))
+                if ChineseConverter.needsConversion(literal), !allowed.contains(literal) {
+                    out.append("\(path): \(literal)")
+                }
+            }
+        }
+        return out
+    }
+}
+
 import AppKit
 
 extension Support {

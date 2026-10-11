@@ -38,11 +38,11 @@ public enum TranscriptionError: Error, Equatable, LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .invalidEndpoint: "API base URL 無效"
-        case .missingAPIKey: "尚未設定 API key"
-        case .http(let status, let message): "HTTP \(status)：\(message)"
-        case .invalidResponse: "無法解析轉錄結果"
-        case .network(let message): "網路錯誤：\(message)"
+        case .invalidEndpoint: L("The API base URL is not valid")
+        case .missingAPIKey: L("No API key is set")
+        case .http(let status, let message): "HTTP \(status): \(message)"
+        case .invalidResponse: L("Could not read the transcription result")
+        case .network(let message): L("Network error: %@", message)
         }
     }
 }
@@ -135,7 +135,7 @@ public enum Transcription {
         if let message = json?["error"] as? String { return message }
         if let message = json?["message"] as? String { return message }
         let raw = String(decoding: data.prefix(300), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-        return raw.isEmpty ? "（無內容）" : raw
+        return raw.isEmpty ? L("(empty response)") : raw
     }
 
     public static func transcribe(

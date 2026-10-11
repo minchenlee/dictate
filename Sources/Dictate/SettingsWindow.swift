@@ -88,7 +88,7 @@ final class SettingsModel: ObservableObject {
                 modifiers: ComboModifiers(eventFlags: event.modifierFlags.rawValue),
                 keyLabel: KeyCombo.keyLabel(keyCode: event.keyCode, characters: event.charactersIgnoringModifiers))
             guard combo.isValid else {
-                self.captureHint = "需要搭配 ⌘、⌥、⌃ 或 ⇧（F1–F20 除外）"
+                self.captureHint = L("Add ⌘, ⌥, ⌃ or ⇧ (not needed for F1–F20)")
                 return nil
             }
             self.draft.combo = combo
@@ -138,9 +138,9 @@ final class SettingsWindowController: NSWindowController {
             item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
             tabs.addTabViewItem(item)
         }
-        add("一般", "gearshape", GeneralTab(model: model))
-        add("轉錄", "waveform", ServiceTab(model: model))
-        add("快捷鍵", "keyboard", HotkeyTab(model: model))
+        add(L("General"), "gearshape", GeneralTab(model: model))
+        add(L("Transcription"), "waveform", ServiceTab(model: model))
+        add(L("Shortcut"), "keyboard", HotkeyTab(model: model))
 
         let window = NSWindow(contentViewController: tabs)
         window.styleMask = [.titled, .closable]
@@ -172,22 +172,27 @@ private struct GeneralTab: View {
     var body: some View {
         Form {
             Section {
-                Toggle("登入時自動開啟", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
+                Picker(L("Language"), selection: $model.draft.uiLanguage) {
+                    Text(L("System")).tag(AppLanguage.system)
+                    Text(verbatim: "English").tag(AppLanguage.english)
+                    Text(verbatim: "繁體中文").tag(AppLanguage.traditionalChinese)
+                }
+                Toggle(L("Open at login"), isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
                 if model.loginNeedsApproval {
-                    LabeledContent("需要在系統設定中允許") {
-                        Button("開啟登入項目") { SMAppService.openSystemSettingsLoginItems() }
+                    LabeledContent(L("Allow it in System Settings")) {
+                        Button(L("Open Login Items")) { SMAppService.openSystemSettingsLoginItems() }
                     }
                 }
-                Toggle("開始與結束錄音時播放提示音", isOn: $model.draft.playSounds)
+                Toggle(L("Play sounds when recording starts and ends"), isOn: $model.draft.playSounds)
             }
             Section {
-                Toggle("簡體轉繁體（台灣用語）", isOn: $model.draft.convertToTraditional)
+                Toggle(L("Convert Simplified to Traditional Chinese (Taiwan)"), isOn: $model.draft.convertToTraditional)
             } footer: {
-                Text(model.openCCPath.map { "使用 \($0)" } ?? "找不到 opencc，會輸出原文。安裝：brew install opencc")
+                Text(model.openCCPath.map { L("Using %@", $0) } ?? L("opencc not found, so text is left as is. Install: brew install opencc"))
             }
-            Section("權限") {
-                PermissionRow(title: "麥克風", detail: "錄下你的語音", granted: model.micGranted, pane: "Privacy_Microphone")
-                PermissionRow(title: "輔助使用", detail: "偵測觸發鍵並貼上文字", granted: model.axGranted, pane: "Privacy_Accessibility")
+            Section(L("Permissions")) {
+                PermissionRow(title: L("Microphone"), detail: L("Records your voice"), granted: model.micGranted, pane: "Privacy_Microphone")
+                PermissionRow(title: L("Accessibility"), detail: L("Detects the trigger key and pastes text"), granted: model.axGranted, pane: "Privacy_Accessibility")
             }
         }
         .formStyle(.grouped)
@@ -198,29 +203,29 @@ private struct GeneralTab: View {
 
 private struct ServiceTab: View {
     @ObservedObject var model: SettingsModel
-    private let languages: [(String, String)] = [("", "自動偵測"), ("zh", "中文"), ("en", "English"), ("ja", "日本語")]
+    private var languages: [(String, String)] { [("", L("Auto-detect")), ("zh", L("Chinese")), ("en", L("English")), ("ja", L("Japanese"))] }
 
     var body: some View {
         Form {
             Section {
-                Picker("服務", selection: Binding(get: { model.draft.providerID }, set: { model.selectProvider($0) })) {
+                Picker(L("Service"), selection: Binding(get: { model.draft.providerID }, set: { model.selectProvider($0) })) {
                     ForEach(ProviderPreset.all) { Text($0.name).tag($0.id) }
                 }
                 TextField("API base URL", text: $model.draft.baseURL, prompt: Text("https://…/v1"))
                     .disabled(model.draft.providerID != ProviderPreset.custom.id)
                 SecureField("API key", text: $model.apiKey, prompt: Text("sk-…"))
             } footer: {
-                Text("API key 存在「鑰匙圈」，每個服務各存一把。")
+                Text(L("API keys are stored in the Keychain, one per service."))
             }
             Section {
-                TextField("模型", text: $model.draft.model)
-                Picker("語言", selection: $model.draft.language) {
+                TextField(L("Model"), text: $model.draft.model)
+                Picker(L("Spoken language"), selection: $model.draft.language) {
                     ForEach(languages, id: \.0) { Text($0.1).tag($0.0) }
                 }
-                TextField("提示詞", text: $model.draft.prompt, prompt: Text("選填"), axis: .vertical)
+                TextField(L("Prompt"), text: $model.draft.prompt, prompt: Text(L("Optional")), axis: .vertical)
                     .lineLimit(2...4)
             } footer: {
-                Text("中英混合時，「自動偵測」通常比固定語言準。")
+                Text(L("For mixed languages, Auto-detect is usually more accurate than a fixed language."))
             }
         }
         .formStyle(.grouped)
@@ -235,34 +240,34 @@ private struct HotkeyTab: View {
     var body: some View {
         Form {
             Section {
-                Picker("觸發方式", selection: $model.draft.triggerKind) {
-                    Text("單一修飾鍵").tag(TriggerKind.modifier)
-                    Text("組合鍵").tag(TriggerKind.combo)
+                Picker(L("Trigger"), selection: $model.draft.triggerKind) {
+                    Text(L("Single modifier")).tag(TriggerKind.modifier)
+                    Text(L("Key combo")).tag(TriggerKind.combo)
                 }
                 .pickerStyle(.segmented)
 
                 if model.draft.triggerKind == .modifier {
-                    Picker("按鍵", selection: $model.draft.trigger) {
+                    Picker(L("Key"), selection: $model.draft.trigger) {
                         ForEach(TriggerKey.allCases.filter { !$0.isBusy }, id: \.self) { Text($0.label).tag($0) }
                         Divider()
                         ForEach(TriggerKey.allCases.filter(\.isBusy), id: \.self) { Text($0.label).tag($0) }
                     }
                 } else {
-                    LabeledContent("組合鍵") {
+                    LabeledContent(L("Key combo")) {
                         ComboRecorder(model: model)
                     }
                 }
 
-                Picker("模式", selection: $model.draft.mode) {
-                    Text("按住說話").tag(RecordingMode.hold)
-                    Text("按一下切換").tag(RecordingMode.toggle)
+                Picker(L("Mode"), selection: $model.draft.mode) {
+                    Text(L("Hold to talk")).tag(RecordingMode.hold)
+                    Text(L("Press to toggle")).tag(RecordingMode.toggle)
                 }
                 .pickerStyle(.radioGroup)
             } footer: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(model.draft.mode == .hold
-                         ? "按住 \(model.draft.activeTrigger.label) 說話，放開後送出。"
-                         : "按一下 \(model.draft.activeTrigger.label) 開始，再按一下送出。")
+                         ? L("Hold %@ and speak. Release to send.", model.draft.activeTrigger.label)
+                         : L("Press %@ to start, press again to send.", model.draft.activeTrigger.label))
                     Text(footnote)
                 }
             }
@@ -276,13 +281,13 @@ private struct HotkeyTab: View {
     private var footnote: String {
         if model.draft.triggerKind == .combo {
             return model.draft.combo == nil
-                ? "還沒錄製組合鍵，暫時使用 \(model.draft.trigger.label)。錄音中按 Esc 取消。"
-                : "錄音中按 Esc 取消。組合鍵被其他 app 佔用時會沒有反應，請換一組。"
+                ? L("No combo recorded yet, so %@ is used. Press Esc to cancel a recording.", model.draft.trigger.label)
+                : L("Press Esc to cancel a recording. If another app uses the combo, nothing happens; choose another.")
         }
         switch model.draft.trigger {
-        case .fn: return "Fn／🌐 只在 Apple 鍵盤上有效。請把「系統設定 › 鍵盤 › 按下 🌐 鍵時」設為「不執行任何動作」。"
-        case let key where key.isBusy: return "左側修飾鍵常用在快捷鍵，容易誤觸。跟其他鍵一起按時不會錄音。錄音中按 Esc 取消。"
-        default: return "錄音中按 Esc 取消。觸發鍵跟其他鍵一起按（例如 ⌘C）不會錄音。"
+        case .fn: return L("Fn / 🌐 works only on Apple keyboards. Set System Settings › Keyboard › Press 🌐 key to Do Nothing.")
+        case let key where key.isBusy: return L("Left-side modifiers are common in shortcuts, so accidental presses are likely. Pressed with another key, they do not record. Press Esc to cancel a recording.")
+        default: return L("Press Esc to cancel a recording. The trigger pressed with another key (such as ⌘C) does not record.")
         }
     }
 }
@@ -296,7 +301,7 @@ private struct ComboRecorder: View {
                 Button {
                     model.isCapturing ? model.stopCapture() : model.startCapture()
                 } label: {
-                    Text(model.isCapturing ? "請按下組合鍵…" : (model.draft.combo?.label ?? "按此錄製"))
+                    Text(model.isCapturing ? L("Press a combo…") : (model.draft.combo?.label ?? L("Click to Record")))
                         .font(.system(.body, design: .rounded).weight(.medium))
                         .frame(minWidth: 120)
                 }
@@ -309,7 +314,7 @@ private struct ComboRecorder: View {
                         Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
-                    .help("清除組合鍵")
+                    .help(L("Clear combo"))
                 }
             }
             if let hint = model.captureHint, model.isCapturing {
@@ -328,11 +333,11 @@ private struct PermissionRow: View {
     var body: some View {
         LabeledContent {
             if granted {
-                Label("已允許", systemImage: "checkmark.circle.fill")
+                Label(L("Allowed"), systemImage: "checkmark.circle.fill")
                     .labelStyle(.titleAndIcon)
                     .foregroundStyle(.green)
             } else {
-                Button("開啟系統設定") {
+                Button(L("Open System Settings")) {
                     if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(pane)") {
                         NSWorkspace.shared.open(url)
                     }

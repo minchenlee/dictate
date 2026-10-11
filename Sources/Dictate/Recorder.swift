@@ -1,4 +1,5 @@
 import AVFoundation
+import DictateCore
 
 /// Records 16 kHz mono AAC (.m4a) to one reused temp file.
 final class Recorder: NSObject {
@@ -30,7 +31,7 @@ final class Recorder: NSObject {
         ]
         let r = try AVAudioRecorder(url: url, settings: settings)
         r.isMeteringEnabled = true
-        guard r.record() else { throw NSError(domain: "Dictate", code: 1, userInfo: [NSLocalizedDescriptionKey: "無法開始錄音"]) }
+        guard r.record() else { throw NSError(domain: "Dictate", code: 1, userInfo: [NSLocalizedDescriptionKey: L("Could not start recording")]) }
         recorder = r
         peak = -160
         meterTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in

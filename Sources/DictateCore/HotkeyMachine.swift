@@ -46,15 +46,15 @@ public enum TriggerKey: String, CaseIterable, Sendable {
 
     public var label: String {
         switch self {
-        case .rightCommand: "右 ⌘"
-        case .rightOption: "右 ⌥"
-        case .rightControl: "右 ⌃"
-        case .rightShift: "右 ⇧"
-        case .leftCommand: "左 ⌘"
-        case .leftOption: "左 ⌥"
-        case .leftControl: "左 ⌃"
-        case .leftShift: "左 ⇧"
-        case .fn: "Fn／🌐"
+        case .rightCommand: L("Right ⌘")
+        case .rightOption: L("Right ⌥")
+        case .rightControl: L("Right ⌃")
+        case .rightShift: L("Right ⇧")
+        case .leftCommand: L("Left ⌘")
+        case .leftOption: L("Left ⌥")
+        case .leftControl: L("Left ⌃")
+        case .leftShift: L("Left ⇧")
+        case .fn: "Fn / 🌐"
         }
     }
 
