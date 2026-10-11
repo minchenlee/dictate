@@ -36,6 +36,11 @@
 - **English or 繁體中文 UI.** Follows the system language, or pick one in Settings › General › Language. The change applies right away.
 - **Recent transcripts.** The last 10 are in the menu (⌘1–⌘9 to copy). Memory only; nothing is written to disk.
 
+<p align="center">
+  <img src="docs/images/settings-transcription.png" width="420" alt="Transcription settings: service, API base URL, API key, model, spoken language, prompt">
+  <img src="docs/images/settings-shortcut.png" width="420" alt="Shortcut settings: single modifier or key combo, hold to talk or press to toggle">
+</p>
+
 Dictate does no AI rewriting, no local models, and no accounts. Audio goes to the endpoint you configure and nowhere else.
 
 ## Requirements
