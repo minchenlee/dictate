@@ -1,10 +1,20 @@
 import AppKit
 import Carbon.HIToolbox
+import DictateCore
 
 /// Inserts text at the focused field: put it on the pasteboard, post ⌘V, then
 /// restore the previous pasteboard contents. Posting keys needs Accessibility.
 enum TextInserter {
-    static func insert(_ text: String) {
+    /// Returns the plan used, so the caller can tell the user when it fell back.
+    @discardableResult
+    static func insert(_ text: String) -> InsertPlan {
+        let plan = InsertPlan.decide(accessibilityTrusted: AXIsProcessTrusted())
+        guard plan == .pasteAndRestore else {
+            let pb = NSPasteboard.general
+            pb.clearContents()
+            pb.setString(text, forType: .string)
+            return plan
+        }
         let pb = NSPasteboard.general
         let saved = snapshot(pb)
 
@@ -25,6 +35,7 @@ enum TextInserter {
             pb.clearContents()
             if !saved.isEmpty { pb.writeObjects(saved) }
         }
+        return plan
     }
 
     private static func snapshot(_ pb: NSPasteboard) -> [NSPasteboardItem] {

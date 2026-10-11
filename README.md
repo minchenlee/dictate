@@ -20,8 +20,8 @@
 ```sh
 swift run DictateChecks           # 純邏輯測試（headless）。CLT 6.2 的 swift test 會靜默跑 0 個測試，所以改用這個 runner
 swift scripts/make-icon.swift    # 重新產生 Resources/AppIcon-1024.png
-scripts/bundle.sh                # 產生 build/Dictate.app（ad-hoc 簽名）
-SIGN_ID="Apple Development: …" scripts/bundle.sh   # 固定簽名，重 build 不用重新授權
+scripts/bundle.sh                # 產生 build/Dictate.app，自動用鑰匙圈裡的 Apple Development 憑證簽名
+SIGN_ID=- scripts/bundle.sh      # 強制 ad-hoc（每次重 build 都要重新授權「輔助使用」）
 ```
 重的 build 請用 `slot run <name> "bundle" -- scripts/bundle.sh`。
 

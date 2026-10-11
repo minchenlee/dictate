@@ -234,3 +234,14 @@ import Testing
         #expect(TranscriptHistory.title(for: "abc", limit: 3) == "abc")
     }
 }
+
+@Suite struct InsertPlanTests {
+    // Without Accessibility, a posted ⌘V is dropped silently and the text is lost.
+    @Test func untrustedKeepsTextOnClipboard() {
+        #expect(InsertPlan.decide(accessibilityTrusted: false) == .clipboardOnly)
+    }
+
+    @Test func trustedPastes() {
+        #expect(InsertPlan.decide(accessibilityTrusted: true) == .pasteAndRestore)
+    }
+}

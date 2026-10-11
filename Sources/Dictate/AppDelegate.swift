@@ -142,7 +142,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         settleIndicators()
         guard !text.isEmpty else { return }
         history.add(text)
-        TextInserter.insert(text)
+        if TextInserter.insert(text) == .clipboardOnly {
+            hud.show(.message("沒有「輔助使用」權限，文字已拷貝，請按 ⌘V"), autoHide: 5)
+            ensureAccessibility(prompt: false)
+        }
     }
 
     private func fail(_ message: String) {

@@ -1,12 +1,21 @@
 #!/usr/bin/env bash
 # Build release and wrap it into build/Dictate.app.
-# Signing: ad-hoc by default. Ad-hoc builds get a new identity on every rebuild,
-# so macOS asks for Microphone/Accessibility again. Sign with a stable identity
-# to keep the grants, e.g.
-#   SIGN_ID="Apple Development: <Name> (<TEAMID>)" scripts/bundle.sh
+# Signing: uses the first "Apple Development" identity in the keychain, so the
+# Accessibility/Microphone grants survive rebuilds. Ad-hoc builds get a new
+# identity every time, and macOS then drops Accessibility silently (⌘V stops
+# working while System Settings still shows the toggle on).
+# Override: SIGN_ID="<identity>" scripts/bundle.sh ; force ad-hoc: SIGN_ID=- scripts/bundle.sh
 # Heavy: run via `slot run gh-dictate-orch "bundle" -- scripts/bundle.sh`.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+if pgrep -f "build/Dictate.app/Contents/MacOS/Dictate" >/dev/null; then
+  echo "warning: Dictate is running; quit and reopen it after this build."
+fi
+if [ -z "${SIGN_ID:-}" ]; then
+  SIGN_ID="$(security find-identity -v -p codesigning 2>/dev/null | awk -F'"' '/Apple Development/ {print $2; exit}')"
+  SIGN_ID="${SIGN_ID:--}"
+fi
 
 command -v disk-guard >/dev/null && { disk-guard 5 || { echo "low disk"; exit 1; }; }
 VERSION="${VERSION:-0.1.0}"
@@ -58,12 +67,7 @@ $ICON_KEY
 </plist>
 PLIST
 
-if [ -n "${SIGN_ID:-}" ]; then
-  codesign --force --options runtime --entitlements scripts/Dictate.entitlements -s "$SIGN_ID" "$APP"
-  echo "signed: $SIGN_ID"
-else
-  codesign --force --options runtime --entitlements scripts/Dictate.entitlements -s - "$APP"
-  echo "signed: ad-hoc"
-fi
+codesign --force --options runtime --entitlements scripts/Dictate.entitlements -s "$SIGN_ID" "$APP"
+echo "signed: $([ "$SIGN_ID" = "-" ] && echo ad-hoc || echo "$SIGN_ID")"
 codesign --verify --strict "$APP"
 echo "built: $APP"
