@@ -28,11 +28,21 @@ public struct DictateSettings: Equatable, Sendable {
     public var language: String = ""
     public var prompt: String = "以下是繁體中文的口述，可能夾雜英文詞彙。"
     public var mode: RecordingMode = .hold
+    public var triggerKind: TriggerKind = .modifier
+    /// Used when `triggerKind == .modifier`.
     public var trigger: TriggerKey = .rightCommand
+    /// Used when `triggerKind == .combo`.
+    public var combo: KeyCombo? = nil
     public var convertToTraditional: Bool = true
     public var playSounds: Bool = true
 
     public init() {}
+
+    /// The trigger in effect. A combo kind without a recorded combo falls back to the modifier key.
+    public var activeTrigger: Trigger {
+        if triggerKind == .combo, let combo, combo.isValid { return .combo(combo) }
+        return .modifier(trigger)
+    }
 
     /// Keychain account for the key: one key per API host, so switching providers keeps both.
     public var keychainAccount: String {
@@ -42,7 +52,8 @@ public struct DictateSettings: Equatable, Sendable {
     enum Key {
         static let provider = "provider", baseURL = "baseURL", model = "model", language = "language"
         static let prompt = "prompt", mode = "mode", trigger = "trigger", convert = "convertToTraditional"
-        static let sounds = "playSounds"
+        static let sounds = "playSounds", triggerKind = "triggerKind"
+        static let comboKeyCode = "comboKeyCode", comboModifiers = "comboModifiers", comboLabel = "comboLabel"
     }
 
     public static func load(from defaults: UserDefaults) -> DictateSettings {
@@ -56,6 +67,13 @@ public struct DictateSettings: Equatable, Sendable {
         if let v = defaults.string(forKey: Key.trigger).flatMap(TriggerKey.init(rawValue:)) { s.trigger = v }
         if defaults.object(forKey: Key.convert) != nil { s.convertToTraditional = defaults.bool(forKey: Key.convert) }
         if defaults.object(forKey: Key.sounds) != nil { s.playSounds = defaults.bool(forKey: Key.sounds) }
+        if let v = defaults.string(forKey: Key.triggerKind).flatMap(TriggerKind.init(rawValue:)) { s.triggerKind = v }
+        if defaults.object(forKey: Key.comboKeyCode) != nil, let label = defaults.string(forKey: Key.comboLabel) {
+            s.combo = KeyCombo(
+                keyCode: UInt16(clamping: defaults.integer(forKey: Key.comboKeyCode)),
+                modifiers: ComboModifiers(rawValue: UInt(clamping: defaults.integer(forKey: Key.comboModifiers))),
+                keyLabel: label)
+        }
         return s
     }
 
@@ -69,5 +87,13 @@ public struct DictateSettings: Equatable, Sendable {
         defaults.set(trigger.rawValue, forKey: Key.trigger)
         defaults.set(convertToTraditional, forKey: Key.convert)
         defaults.set(playSounds, forKey: Key.sounds)
+        defaults.set(triggerKind.rawValue, forKey: Key.triggerKind)
+        if let combo {
+            defaults.set(Int(combo.keyCode), forKey: Key.comboKeyCode)
+            defaults.set(Int(combo.modifiers.rawValue), forKey: Key.comboModifiers)
+            defaults.set(combo.keyLabel, forKey: Key.comboLabel)
+        } else {
+            for key in [Key.comboKeyCode, Key.comboModifiers, Key.comboLabel] { defaults.removeObject(forKey: key) }
+        }
     }
 }

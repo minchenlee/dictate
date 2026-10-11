@@ -14,6 +14,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var settingsWindow: SettingsWindowController?
     private var axPoll: Timer?
     private var maxDurationWork: DispatchWorkItem?
+    /// Sound + HUD wait briefly, so a trigger used as a shortcut modifier (⌘C) shows nothing.
+    private var feedbackWork: DispatchWorkItem?
+    private let feedbackDelay: TimeInterval = 0.15
     /// Last queued transcription. Each new one waits for it, so text lands in speaking order.
     private var pending: Task<Void, Never>?
     private var inFlight = 0
@@ -35,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
         recorder.onLevel = { [weak self] level in self?.hud.level(level) }
 
-        monitor = HotkeyMonitor(trigger: settings.trigger) { [weak self] event in
+        monitor = HotkeyMonitor(trigger: settings.activeTrigger) { [weak self] event in
             self?.handle(event)
         }
         monitor.start()
@@ -73,9 +76,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             hud.show(.message(error.localizedDescription), autoHide: 2.5)
             return
         }
-        play("Tink")
-        setIcon(.recording)
-        hud.show(.recording)
+        let feedback = DispatchWorkItem { [weak self] in
+            guard let self, self.recorder.isRecording else { return }
+            self.play("Tink")
+            self.setIcon(.recording)
+            self.hud.show(.recording)
+        }
+        feedbackWork = feedback
+        DispatchQueue.main.asyncAfter(deadline: .now() + feedbackDelay, execute: feedback)
         let work = DispatchWorkItem { [weak self] in
             guard let self, self.recorder.isRecording else { return }
             self.machine.reset()
@@ -87,13 +95,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func cancelRecording() {
         maxDurationWork?.cancel()
+        feedbackWork?.cancel()
         recorder.stop()
-        setIcon(.idle)
-        hud.hide()
+        settleIndicators()
     }
 
     private func stopAndTranscribe() {
         maxDurationWork?.cancel()
+        feedbackWork?.cancel()
         guard let take = recorder.stop() else { return }
         guard take.duration >= minDuration, take.peakPower > silenceDB else {
             setIcon(.idle)
@@ -206,7 +215,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
-        let hint = settings.mode == .hold ? "按住\(settings.trigger.label)說話" : "按一下\(settings.trigger.label)開始或送出"
+        let label = settings.activeTrigger.label
+        let hint = settings.mode == .hold ? "按住 \(label) 說話" : "按一下 \(label) 開始或送出"
         let status = NSMenuItem(title: hint, action: nil, keyEquivalent: "")
         status.image = symbol("mic")
         status.isEnabled = false
@@ -274,6 +284,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if settingsWindow == nil {
             let model = SettingsModel(settings: settings)
             model.onChange = { [weak self] new in self?.apply(new) }
+            model.onCaptureChange = { [weak self] capturing in
+                guard let self else { return }
+                if capturing {
+                    if self.machine.isRecording { self.cancelRecording() }
+                    self.machine.reset()
+                    self.monitor.stop()
+                } else {
+                    self.monitor.start()
+                }
+            }
             settingsWindow = SettingsWindowController(model: model)
         }
         settingsWindow?.show()
@@ -282,10 +302,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func apply(_ new: DictateSettings) {
         let old = settings
         settings = new
-        guard new.mode != old.mode || new.trigger != old.trigger else { return }
+        guard new.mode != old.mode || new.activeTrigger != old.activeTrigger else { return }
         if machine.isRecording { cancelRecording() }
         machine = HotkeyMachine(mode: new.mode)
-        monitor.trigger = new.trigger
+        monitor.trigger = new.activeTrigger
         monitor.start()
+        if case .combo(let combo) = new.activeTrigger, !monitor.isComboRegistered {
+            hud.show(.message("\(combo.label) 已被其他 app 佔用，請換一組"), autoHide: 4)
+        }
     }
 }

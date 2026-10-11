@@ -245,3 +245,60 @@ import Testing
         #expect(InsertPlan.decide(accessibilityTrusted: true) == .pasteAndRestore)
     }
 }
+
+@Suite struct TriggerTests {
+    @Test func comboLabelUsesAppleOrder() {
+        let combo = KeyCombo(keyCode: 2, modifiers: [.command, .shift, .control], keyLabel: "D")
+        #expect(combo.label == "⌃⇧⌘D")
+        #expect(KeyCombo(keyCode: 49, modifiers: .option, keyLabel: "Space").label == "⌥Space")
+    }
+
+    @Test func carbonModifierBits() {
+        #expect(ComboModifiers([.command, .option]).carbon == 0x0100 | 0x0800)
+        #expect(ComboModifiers([.control, .shift]).carbon == 0x1000 | 0x0200)
+    }
+
+    @Test func eventFlagsKeepOnlyFourModifiers() {
+        // command | capsLock | numericPad | deviceRightCommand
+        let raw: UInt = (1 << 20) | (1 << 16) | (1 << 21) | 0x10
+        #expect(ComboModifiers(eventFlags: raw) == .command)
+    }
+
+    @Test func validity() {
+        #expect(!KeyCombo(keyCode: 2, modifiers: [], keyLabel: "D").isValid) // bare letter
+        #expect(KeyCombo(keyCode: 96, modifiers: [], keyLabel: "F5").isValid) // bare F-key
+        #expect(!KeyCombo(keyCode: 53, modifiers: .command, keyLabel: "⎋").isValid) // Esc reserved
+        #expect(KeyCombo(keyCode: 49, modifiers: .option, keyLabel: "Space").isValid)
+    }
+
+    @Test func keyLabels() {
+        #expect(KeyCombo.keyLabel(keyCode: 49, characters: " ") == "Space")
+        #expect(KeyCombo.keyLabel(keyCode: 96, characters: nil) == "F5")
+        #expect(KeyCombo.keyLabel(keyCode: 2, characters: "d") == "D")
+    }
+
+    @Test func activeTriggerFallsBackWithoutCombo() {
+        var s = DictateSettings()
+        s.triggerKind = .combo
+        #expect(s.activeTrigger == .modifier(.rightCommand))
+        let combo = KeyCombo(keyCode: 49, modifiers: .option, keyLabel: "Space")
+        s.combo = combo
+        #expect(s.activeTrigger == .combo(combo))
+        #expect(s.activeTrigger.label == "⌥Space")
+    }
+
+    @Test func comboRoundTrip() {
+        var s = DictateSettings()
+        s.triggerKind = .combo
+        s.combo = KeyCombo(keyCode: 2, modifiers: [.control, .shift], keyLabel: "D")
+        #expect(Support.roundTrip(s).loaded == s)
+        s.combo = nil
+        #expect(Support.roundTrip(s).loaded == s)
+    }
+
+    @Test func modifierKeysAreDistinct() {
+        #expect(Set(TriggerKey.allCases.map(\.keyCode)).count == TriggerKey.allCases.count)
+        #expect(Set(TriggerKey.allCases.map(\.deviceMask)).count == TriggerKey.allCases.count)
+        #expect(TriggerKey.leftCommand.isBusy && !TriggerKey.rightCommand.isBusy && !TriggerKey.fn.isBusy)
+    }
+}

@@ -13,6 +13,8 @@ public enum RecordingMode: String, CaseIterable, Sendable {
 /// which tells the right-hand key apart from the left-hand one.
 public enum TriggerKey: String, CaseIterable, Sendable {
     case rightCommand, rightOption, rightControl, rightShift
+    case leftCommand, leftOption, leftControl, leftShift
+    case fn
 
     public var keyCode: UInt16 {
         switch self {
@@ -20,6 +22,11 @@ public enum TriggerKey: String, CaseIterable, Sendable {
         case .rightOption: 61
         case .rightControl: 62
         case .rightShift: 60
+        case .leftCommand: 55
+        case .leftOption: 58
+        case .leftControl: 59
+        case .leftShift: 56
+        case .fn: 63
         }
     }
 
@@ -29,6 +36,11 @@ public enum TriggerKey: String, CaseIterable, Sendable {
         case .rightOption: 0x0000_0040
         case .rightControl: 0x0000_2000
         case .rightShift: 0x0000_0004
+        case .leftCommand: 0x0000_0008
+        case .leftOption: 0x0000_0020
+        case .leftControl: 0x0000_0001
+        case .leftShift: 0x0000_0002
+        case .fn: 0x0080_0000 // NSEvent.ModifierFlags.function
         }
     }
 
@@ -38,6 +50,19 @@ public enum TriggerKey: String, CaseIterable, Sendable {
         case .rightOption: "右 ⌥"
         case .rightControl: "右 ⌃"
         case .rightShift: "右 ⇧"
+        case .leftCommand: "左 ⌘"
+        case .leftOption: "左 ⌥"
+        case .leftControl: "左 ⌃"
+        case .leftShift: "左 ⇧"
+        case .fn: "Fn／🌐"
+        }
+    }
+
+    /// Keys that are part of everyday shortcuts, so a lone press is more likely accidental.
+    public var isBusy: Bool {
+        switch self {
+        case .leftCommand, .leftOption, .leftControl, .leftShift: true
+        default: false
         }
     }
 }

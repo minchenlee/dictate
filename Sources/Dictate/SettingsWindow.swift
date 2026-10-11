@@ -16,7 +16,14 @@ final class SettingsModel: ObservableObject {
     @Published var loginNeedsApproval = false
     let openCCPath: String?
 
+    /// True while the combo recorder waits for a key press.
+    @Published var isCapturing = false
+    @Published var captureHint: String?
+
     var onChange: (DictateSettings) -> Void = { _ in }
+    /// Lets the app pause its own hotkey while the recorder listens.
+    var onCaptureChange: (Bool) -> Void = { _ in }
+    private var captureMonitor: Any?
     private var bag: Set<AnyCancellable> = []
     /// Set while switching provider, so the key of the old host is not written to the new one.
     private var switchingProvider = false
@@ -63,6 +70,40 @@ final class SettingsModel: ObservableObject {
         }
         apiKey = Keychain.read(account: draft.keychainAccount) ?? ""
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in self?.switchingProvider = false }
+    }
+
+    func startCapture() {
+        guard !isCapturing else { return }
+        isCapturing = true
+        captureHint = nil
+        onCaptureChange(true)
+        captureMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self else { return event }
+            if event.keyCode == 53, ComboModifiers(eventFlags: event.modifierFlags.rawValue).isEmpty {
+                self.stopCapture() // Esc cancels
+                return nil
+            }
+            let combo = KeyCombo(
+                keyCode: event.keyCode,
+                modifiers: ComboModifiers(eventFlags: event.modifierFlags.rawValue),
+                keyLabel: KeyCombo.keyLabel(keyCode: event.keyCode, characters: event.charactersIgnoringModifiers))
+            guard combo.isValid else {
+                self.captureHint = "需要搭配 ⌘、⌥、⌃ 或 ⇧（F1–F20 除外）"
+                return nil
+            }
+            self.draft.combo = combo
+            self.draft.triggerKind = .combo
+            self.stopCapture()
+            return nil
+        }
+    }
+
+    func stopCapture() {
+        if let m = captureMonitor { NSEvent.removeMonitor(m) }
+        captureMonitor = nil
+        guard isCapturing else { return }
+        isCapturing = false
+        onCaptureChange(false)
     }
 
     func setLaunchAtLogin(_ on: Bool) {
@@ -194,9 +235,24 @@ private struct HotkeyTab: View {
     var body: some View {
         Form {
             Section {
-                Picker("觸發鍵", selection: $model.draft.trigger) {
-                    ForEach(TriggerKey.allCases, id: \.self) { Text($0.label).tag($0) }
+                Picker("觸發方式", selection: $model.draft.triggerKind) {
+                    Text("單一修飾鍵").tag(TriggerKind.modifier)
+                    Text("組合鍵").tag(TriggerKind.combo)
                 }
+                .pickerStyle(.segmented)
+
+                if model.draft.triggerKind == .modifier {
+                    Picker("按鍵", selection: $model.draft.trigger) {
+                        ForEach(TriggerKey.allCases.filter { !$0.isBusy }, id: \.self) { Text($0.label).tag($0) }
+                        Divider()
+                        ForEach(TriggerKey.allCases.filter(\.isBusy), id: \.self) { Text($0.label).tag($0) }
+                    }
+                } else {
+                    LabeledContent("組合鍵") {
+                        ComboRecorder(model: model)
+                    }
+                }
+
                 Picker("模式", selection: $model.draft.mode) {
                     Text("按住說話").tag(RecordingMode.hold)
                     Text("按一下切換").tag(RecordingMode.toggle)
@@ -205,15 +261,61 @@ private struct HotkeyTab: View {
             } footer: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(model.draft.mode == .hold
-                         ? "按住\(model.draft.trigger.label)說話，放開後送出。"
-                         : "按一下\(model.draft.trigger.label)開始，再按一下送出。")
-                    Text("錄音中按 Esc 取消。觸發鍵跟其他鍵一起按（例如 ⌘C）不會錄音。")
+                         ? "按住 \(model.draft.activeTrigger.label) 說話，放開後送出。"
+                         : "按一下 \(model.draft.activeTrigger.label) 開始，再按一下送出。")
+                    Text(footnote)
                 }
             }
         }
         .formStyle(.grouped)
         .frame(width: 460)
         .fixedSize()
+        .onDisappear { model.stopCapture() }
+    }
+
+    private var footnote: String {
+        if model.draft.triggerKind == .combo {
+            return model.draft.combo == nil
+                ? "還沒錄製組合鍵，暫時使用 \(model.draft.trigger.label)。錄音中按 Esc 取消。"
+                : "錄音中按 Esc 取消。組合鍵被其他 app 佔用時會沒有反應，請換一組。"
+        }
+        switch model.draft.trigger {
+        case .fn: return "Fn／🌐 只在 Apple 鍵盤上有效。請把「系統設定 › 鍵盤 › 按下 🌐 鍵時」設為「不執行任何動作」。"
+        case let key where key.isBusy: return "左側修飾鍵常用在快捷鍵，容易誤觸。跟其他鍵一起按時不會錄音。錄音中按 Esc 取消。"
+        default: return "錄音中按 Esc 取消。觸發鍵跟其他鍵一起按（例如 ⌘C）不會錄音。"
+        }
+    }
+}
+
+private struct ComboRecorder: View {
+    @ObservedObject var model: SettingsModel
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            HStack(spacing: 6) {
+                Button {
+                    model.isCapturing ? model.stopCapture() : model.startCapture()
+                } label: {
+                    Text(model.isCapturing ? "請按下組合鍵…" : (model.draft.combo?.label ?? "按此錄製"))
+                        .font(.system(.body, design: .rounded).weight(.medium))
+                        .frame(minWidth: 120)
+                }
+                .buttonStyle(.bordered)
+                .tint(model.isCapturing ? .accentColor : nil)
+                if model.draft.combo != nil, !model.isCapturing {
+                    Button {
+                        model.draft.combo = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("清除組合鍵")
+                }
+            }
+            if let hint = model.captureHint, model.isCapturing {
+                Text(hint).font(.caption).foregroundStyle(.red)
+            }
+        }
     }
 }
 
