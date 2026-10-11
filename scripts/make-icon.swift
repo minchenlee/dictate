@@ -1,45 +1,110 @@
-// Renders Resources/AppIcon-1024.png offscreen: macOS-style rounded square, gradient, white mic.
+// Renders the app icon offscreen: sound bars that end in a text caret, on paper.
+// Writes Resources/AppIcon-1024.png (light, used by bundle.sh) and, as editable sources,
+// Resources/Icon/dictate-icon{,-dark}.{png,svg}.
 // Run: swift scripts/make-icon.swift
 import AppKit
 
-let size: CGFloat = 1024
-let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { _ in
-    // Apple icon grid: 824pt body centred on a 1024 canvas, ~185pt corner radius.
-    let body = NSRect(x: 100, y: 100, width: 824, height: 824)
-    let path = NSBezierPath(roundedRect: body, xRadius: 185, yRadius: 185)
-
-    NSGraphicsContext.current?.saveGraphicsState()
-    let shadow = NSShadow()
-    shadow.shadowColor = .black.withAlphaComponent(0.28)
-    shadow.shadowOffset = NSSize(width: 0, height: -12)
-    shadow.shadowBlurRadius = 28
-    shadow.set()
-    NSColor.black.setFill()
-    path.fill()
-    NSGraphicsContext.current?.restoreGraphicsState()
-
-    let gradient = NSGradient(colors: [
-        NSColor(srgbRed: 1.00, green: 0.42, blue: 0.36, alpha: 1),
-        NSColor(srgbRed: 0.91, green: 0.18, blue: 0.36, alpha: 1),
-    ])!
-    gradient.draw(in: path, angle: -90)
-
-    let config = NSImage.SymbolConfiguration(pointSize: 470, weight: .medium)
-        .applying(.init(paletteColors: [.white]))
-    if let mic = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: nil)?.withSymbolConfiguration(config) {
-        let s = mic.size
-        mic.draw(in: NSRect(x: (size - s.width) / 2, y: (size - s.height) / 2, width: s.width, height: s.height))
-    }
-    return true
+struct Palette {
+    let name: String
+    let paper: NSColor, ink: NSColor, caret: NSColor
+    let paperHex: String, inkHex: String, caretHex: String
 }
 
-let rep = NSBitmapImageRep(
-    bitmapDataPlanes: nil, pixelsWide: Int(size), pixelsHigh: Int(size), bitsPerSample: 8,
-    samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
-NSGraphicsContext.saveGraphicsState()
-NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
-image.draw(in: NSRect(x: 0, y: 0, width: size, height: size))
-NSGraphicsContext.restoreGraphicsState()
-let out = URL(fileURLWithPath: CommandLine.arguments.dropFirst().first ?? "Resources/AppIcon-1024.png")
-try rep.representation(using: .png, properties: [:])!.write(to: out)
-print("wrote \(out.path)")
+let light = Palette(name: "dictate-icon",
+                    paper: NSColor(srgbRed: 0.969, green: 0.957, blue: 0.937, alpha: 1),
+                    ink: NSColor(srgbRed: 0.180, green: 0.188, blue: 0.208, alpha: 1),
+                    caret: NSColor(srgbRed: 0.851, green: 0.412, blue: 0.290, alpha: 1),
+                    paperHex: "#f7f4ef", inkHex: "#2e3035", caretHex: "#d9694a")
+let dark = Palette(name: "dictate-icon-dark",
+                   paper: NSColor(srgbRed: 0.137, green: 0.141, blue: 0.153, alpha: 1),
+                   ink: NSColor(srgbRed: 0.925, green: 0.925, blue: 0.925, alpha: 1),
+                   caret: NSColor(srgbRed: 0.910, green: 0.502, blue: 0.373, alpha: 1),
+                   paperHex: "#232427", inkHex: "#ececec", caretHex: "#e8805f")
+
+let size: CGFloat = 1024
+// Apple icon grid: 824 pt body centred on the canvas, ~185 pt corner radius.
+let body = NSRect(x: 100, y: 100, width: 824, height: 824)
+let radius: CGFloat = 185
+// Bars in SVG (top-left origin) coordinates.
+let heights: [CGFloat] = [90, 190, 300, 190, 120, 230]
+let barWidth: CGFloat = 46, gap: CGFloat = 30, centerX: CGFloat = 470, centerY: CGFloat = 512
+let caretRect = NSRect(x: 700, y: 352, width: 34, height: 320)
+
+func bars() -> [NSRect] {
+    let total = CGFloat(heights.count) * barWidth + CGFloat(heights.count - 1) * gap
+    var x = centerX - total / 2
+    return heights.map { h in
+        defer { x += barWidth + gap }
+        return NSRect(x: x, y: centerY - h / 2, width: barWidth, height: h)
+    }
+}
+
+/// SVG rects use a top-left origin; AppKit uses bottom-left.
+func flipped(_ r: NSRect) -> NSRect {
+    NSRect(x: r.minX, y: size - r.maxY, width: r.width, height: r.height)
+}
+
+func png(_ p: Palette) -> Data {
+    let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { _ in
+        let path = NSBezierPath(roundedRect: body, xRadius: radius, yRadius: radius)
+        NSGraphicsContext.current?.saveGraphicsState()
+        let shadow = NSShadow()
+        shadow.shadowColor = .black.withAlphaComponent(0.22)
+        shadow.shadowOffset = NSSize(width: 0, height: -8)
+        shadow.shadowBlurRadius = 20
+        shadow.set()
+        p.paper.setFill()
+        path.fill()
+        NSGraphicsContext.current?.restoreGraphicsState()
+
+        p.ink.setFill()
+        for r in bars() {
+            NSBezierPath(roundedRect: flipped(r), xRadius: r.width / 2, yRadius: r.width / 2).fill()
+        }
+        p.caret.setFill()
+        NSBezierPath(roundedRect: flipped(caretRect), xRadius: caretRect.width / 2, yRadius: caretRect.width / 2).fill()
+        return true
+    }
+    let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size), pixelsHigh: Int(size),
+                               bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                               colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+    rep.size = image.size
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+    image.draw(in: NSRect(x: 0, y: 0, width: size, height: size))
+    NSGraphicsContext.restoreGraphicsState()
+    return rep.representation(using: .png, properties: [:])!
+}
+
+func svg(_ p: Palette) -> String {
+    func n(_ v: CGFloat) -> String { v == v.rounded() ? String(Int(v)) : String(format: "%.1f", v) }
+    let rects = (bars().map { ($0, p.inkHex) } + [(caretRect, p.caretHex)]).map { r, fill in
+        "  <rect x=\"\(n(r.minX))\" y=\"\(n(r.minY))\" width=\"\(n(r.width))\" height=\"\(n(r.height))\" rx=\"\(n(r.width / 2))\" fill=\"\(fill)\"/>"
+    }
+    return """
+    <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+      <!-- Generated by scripts/make-icon.swift. Edit that script, not this file. -->
+      <defs>
+        <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="10"/>
+          <feOffset dy="8"/>
+          <feComponentTransfer><feFuncA type="linear" slope="0.22"/></feComponentTransfer>
+          <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <rect x="100" y="100" width="824" height="824" rx="185" fill="\(p.paperHex)" filter="url(#shadow)"/>
+    \(rects.joined(separator: "\n"))
+    </svg>
+
+    """
+}
+
+let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+let iconDir = root.appendingPathComponent("Resources/Icon")
+try FileManager.default.createDirectory(at: iconDir, withIntermediateDirectories: true)
+for p in [light, dark] {
+    try png(p).write(to: iconDir.appendingPathComponent("\(p.name).png"))
+    try svg(p).write(to: iconDir.appendingPathComponent("\(p.name).svg"), atomically: true, encoding: .utf8)
+}
+try png(light).write(to: root.appendingPathComponent("Resources/AppIcon-1024.png"))
+print("icon: Resources/AppIcon-1024.png, Resources/Icon/dictate-icon{,-dark}.{png,svg}")

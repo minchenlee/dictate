@@ -82,7 +82,7 @@ If you start a new take while the previous one is still transcribing, results ar
 ```sh
 swift build
 swift run DictateChecks          # unit tests (swift-testing), headless
-swift scripts/make-icon.swift    # regenerate Resources/AppIcon-1024.png
+swift scripts/make-icon.swift    # regenerate the app icon (light and dark PNG + SVG)
 DICTATE_SCREENSHOTS=docs/images build/Dictate.app/Contents/MacOS/Dictate   # re-render the HUD images offscreen
 scripts/render-scene.sh          # re-render the README scene (headless Chrome)
 ```
