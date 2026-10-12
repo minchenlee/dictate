@@ -115,12 +115,19 @@ public enum Transcription {
 
     /// Reads `{"text": "..."}`; maps `{"error": {"message": "..."}}` and non-2xx to errors.
     public static func parse(data: Data, status: Int) throws -> String {
+        try parseResult(data: data, status: status).text
+    }
+
+    /// Like `parse`, and also reads the optional `usage` object.
+    public static func parseResult(data: Data, status: Int) throws -> TranscriptionResult {
         let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         guard (200..<300).contains(status) else {
             throw TranscriptionError.http(status: status, message: errorMessage(json: json, data: data))
         }
         if let text = json?["text"] as? String {
-            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+            return TranscriptionResult(
+                text: text.trimmingCharacters(in: .whitespacesAndNewlines),
+                usage: TranscriptionUsage(json: json?["usage"] as? [String: Any]))
         }
         if json?["error"] != nil {
             throw TranscriptionError.http(status: status, message: errorMessage(json: json, data: data))
@@ -144,7 +151,7 @@ public enum Transcription {
         filename: String = "audio.m4a",
         mimeType: String = "audio/mp4",
         session: URLSession = .shared
-    ) async throws -> String {
+    ) async throws -> TranscriptionResult {
         let request = try makeRequest(config, audio: audio, filename: filename, mimeType: mimeType)
         let data: Data
         let response: URLResponse
@@ -154,6 +161,6 @@ public enum Transcription {
             throw TranscriptionError.network(error.localizedDescription)
         }
         guard let http = response as? HTTPURLResponse else { throw TranscriptionError.invalidResponse }
-        return try parse(data: data, status: http.statusCode)
+        return try parseResult(data: data, status: http.statusCode)
     }
 }

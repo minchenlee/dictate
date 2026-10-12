@@ -123,7 +123,7 @@ final class SettingsModel: ObservableObject {
 final class SettingsWindowController: NSWindowController {
     let model: SettingsModel
 
-    init(model: SettingsModel) {
+    init(model: SettingsModel, usage: UsageStore) {
         self.model = model
         let tabs = NSTabViewController()
         tabs.tabStyle = .toolbar
@@ -141,6 +141,7 @@ final class SettingsWindowController: NSWindowController {
         add(L("General"), "gearshape", GeneralTab(model: model))
         add(L("Transcription"), "waveform", ServiceTab(model: model))
         add(L("Shortcut"), "keyboard", HotkeyTab(model: model))
+        add(L("Usage"), "chart.bar", UsageTab(store: usage))
 
         let window = NSWindow(contentViewController: tabs)
         window.styleMask = [.titled, .closable]

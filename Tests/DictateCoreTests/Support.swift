@@ -113,3 +113,38 @@ extension Support {
         return out
     }
 }
+
+extension Support {
+    static func parseResult(_ body: String, status: Int = 200) throws -> TranscriptionResult {
+        try Transcription.parseResult(data: Data(body.utf8), status: status)
+    }
+
+    /// Gregorian, Taipei time, weeks start Monday.
+    static let calendar: Calendar = {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "Asia/Taipei")!
+        c.firstWeekday = 2
+        return c
+    }()
+
+    /// Noon on the given day of October 2026; day 0 and below fall in September.
+    static func day(_ day: Int) -> Date {
+        let first = calendar.date(from: DateComponents(year: 2026, month: 10, day: 1, hour: 12))!
+        return calendar.date(byAdding: .day, value: day - 1, to: first)!
+    }
+
+    static func record(_ ledger: inout UsageLedger, _ model: String, seconds: Double, usage: TranscriptionUsage?, day d: Int) {
+        ledger.record(model: model, recordedSeconds: seconds, usage: usage, at: day(d), calendar: calendar)
+    }
+
+    static func saveAndLoad(_ ledger: UsageLedger) throws -> UsageLedger {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("dictate-usage-\(UUID().uuidString)/usage.json")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        try ledger.save(to: url)
+        return UsageLedger.load(from: url)
+    }
+
+    static func loadMissing() -> UsageLedger {
+        UsageLedger.load(from: URL(fileURLWithPath: "/nonexistent/dictate/usage.json"))
+    }
+}

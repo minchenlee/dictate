@@ -339,3 +339,69 @@ import Testing
         #expect(Support.chineseLiterals().isEmpty, "\(Support.chineseLiterals())")
     }
 }
+
+@Suite struct UsageTests {
+    @Test func readsReportedCost() throws {
+        let body = #"{"text":"hi","usage":{"seconds":9.2,"input_tokens":120,"output_tokens":8,"cost":0.000508}}"#
+        let usage = try Support.parseResult(body).usage
+        #expect(usage == TranscriptionUsage(seconds: 9.2, inputTokens: 120, outputTokens: 8, cost: 0.000508))
+    }
+
+    @Test func readsTokenUsageWithoutCost() throws {
+        let body = #"{"text":"hi","usage":{"type":"tokens","input_tokens":50,"output_tokens":4,"total_tokens":54}}"#
+        #expect(try Support.parseResult(body).usage == TranscriptionUsage(inputTokens: 50, outputTokens: 4))
+        #expect(try Support.parseResult(#"{"text":"hi"}"#).usage == nil)
+    }
+
+    @Test func pricesKnownModelsPerMinute() {
+        #expect(Pricing.perMinute(for: "gpt-transcribe") == 0.0045)
+        #expect(Pricing.perMinute(for: "openai/gpt-transcribe") == 0.0045)
+        #expect(Pricing.perMinute(for: " GPT-4o-mini-transcribe ") == 0.003)
+        #expect(Pricing.perMinute(for: "whisper-1") == 0.006)
+        #expect(Pricing.perMinute(for: "whisper-large-v3") == nil)
+    }
+
+    @Test func reportedCostWinsOverEstimate() {
+        var ledger = UsageLedger()
+        Support.record(&ledger, "openai/gpt-transcribe", seconds: 10, usage: TranscriptionUsage(seconds: 9.2, cost: 0.0005), day: 12)
+        let all = ledger.total(.all, now: Support.day(12), calendar: Support.calendar)
+        #expect(all == UsageTotal(count: 1, seconds: 9.2, reportedCost: 0.0005, estimatedCost: 0, unpriced: 0))
+    }
+
+    @Test func estimatesFromAudioLength() {
+        var ledger = UsageLedger()
+        Support.record(&ledger, "gpt-transcribe", seconds: 120, usage: TranscriptionUsage(inputTokens: 50), day: 12)
+        Support.record(&ledger, "whisper-large-v3", seconds: 30, usage: nil, day: 12)
+        let all = ledger.total(.all, now: Support.day(12), calendar: Support.calendar)
+        #expect(all.count == 2)
+        #expect(all.seconds == 150)
+        #expect(abs(all.estimatedCost - 0.009) < 1e-12)
+        #expect(all.unpriced == 1)
+        #expect(all.cost == all.estimatedCost)
+    }
+
+    /// Support.calendar: weeks start Monday. Day 12 is Monday 2026-10-12.
+    @Test func totalsByPeriod() {
+        var ledger = UsageLedger()
+        Support.record(&ledger, "x", seconds: 1, usage: TranscriptionUsage(cost: 1), day: 12)
+        Support.record(&ledger, "x", seconds: 1, usage: TranscriptionUsage(cost: 2), day: 12)
+        Support.record(&ledger, "x", seconds: 1, usage: TranscriptionUsage(cost: 4), day: 11) // Sunday, last week
+        Support.record(&ledger, "x", seconds: 1, usage: TranscriptionUsage(cost: 8), day: 1)
+        Support.record(&ledger, "x", seconds: 1, usage: TranscriptionUsage(cost: 16), day: -5) // September
+        let now = Support.day(12)
+        #expect(ledger.total(.today, now: now, calendar: Support.calendar).cost == 3)
+        #expect(ledger.total(.week, now: now, calendar: Support.calendar).cost == 3)
+        #expect(ledger.total(.month, now: now, calendar: Support.calendar).cost == 15)
+        #expect(ledger.total(.all, now: now, calendar: Support.calendar).cost == 31)
+        #expect(ledger.total(.week, now: Support.day(11), calendar: Support.calendar).cost == 4) // Oct 5–11
+    }
+
+    @Test func survivesSaveAndLoad() throws {
+        var ledger = UsageLedger()
+        Support.record(&ledger, "gpt-transcribe", seconds: 60, usage: nil, day: 12)
+        #expect(try Support.saveAndLoad(ledger) == ledger)
+        #expect(Support.loadMissing() == UsageLedger())
+        ledger.reset()
+        #expect(ledger == UsageLedger())
+    }
+}

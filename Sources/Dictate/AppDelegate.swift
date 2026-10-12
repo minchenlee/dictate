@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var pending: Task<Void, Never>?
     private var inFlight = 0
     private var history = TranscriptHistory(capacity: 10)
+    private let usage = UsageStore()
 
     /// Recordings shorter than this, or quieter than `silenceDB`, are dropped.
     private let minDuration: TimeInterval = 0.4
@@ -126,6 +127,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             language: settings.language,
             prompt: settings.prompt)
         let convert = settings.convertToTraditional
+        let model = settings.model
+        let seconds = take.duration
         play("Pop")
         setIcon(.busy)
         hud.show(.transcribing)
@@ -134,7 +137,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         pending = Task { [weak self] in
             let result: Result<String, Error>
             do {
-                var text = try await Transcription.transcribe(config, audio: audio)
+                let response = try await Transcription.transcribe(config, audio: audio)
+                // Billed even if the text turns out empty; record before anything else can fail.
+                self?.usage.record(model: model, recordedSeconds: seconds, usage: response.usage)
+                var text = response.text
                 if convert, let opencc = OpenCC.find() {
                     text = await Task.detached { ChineseConverter.convert(text) { try opencc.run($0) } }.value
                 }
@@ -299,7 +305,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     self.monitor.start()
                 }
             }
-            settingsWindow = SettingsWindowController(model: model)
+            settingsWindow = SettingsWindowController(model: model, usage: usage)
         }
         settingsWindow?.show()
     }
