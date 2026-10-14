@@ -67,6 +67,8 @@ To keep it around, copy `Dictate.app` to `/Applications` before you turn on "Lau
 
 Without Accessibility the transcript stays on the clipboard and Dictate tells you to press ⌘V yourself.
 
+If the trigger stops responding or pasting stops working, reset both permissions step by step: [docs/PERMISSIONS.zh-Hant.md](docs/PERMISSIONS.zh-Hant.md) (Traditional Chinese).
+
 ## How it works
 
 1. The trigger starts `AVAudioRecorder` (16 kHz mono AAC).
@@ -116,6 +118,6 @@ Dictate 是一個很小的 macOS 選單列語音輸入 app：按住右 ⌘ 說�
 - 有安裝 `opencc` 時，會把簡體轉成台灣繁體用語，程式碼和網址不轉。
 - 選單列保留最近 10 筆轉錄，只放在記憶體。
 - 介面有英文和繁體中文。預設跟隨系統語言，也可以在「設定 › 一般 › 語言」切換，立即生效。
-- 需要「麥克風」和「輔助使用」兩個權限。
+- 需要「麥克風」和「輔助使用」兩個權限。權限失效時，照[權限設定指南](docs/PERMISSIONS.zh-Hant.md)重設。
 
 建置：`scripts/bundle.sh`，然後 `open build/Dictate.app`。
