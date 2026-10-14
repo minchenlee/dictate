@@ -6,7 +6,8 @@
 
 <p align="center">
   A tiny macOS menu bar app: hold a key, speak, and the text appears wherever your cursor is.<br>
-  Bring your own OpenAI-compatible API key. About 2,000 lines of Swift, no dependencies.
+  Bring your own OpenAI-compatible API key. About 2,000 lines of Swift, no dependencies.<br>
+  <b>Built with AI (Claude Code). A human sets direction, tests, and reviews.</b> <a href="#how-this-was-built">Details</a>
 </p>
 
 <p align="center">
@@ -102,6 +103,23 @@ Tests run as an executable because `swift test` under Command Line Tools 6.2 exi
 
 Dictation apps are a crowded space. If you want local models, AI cleanup, or cross-platform support, look at [Handy](https://github.com/cjpais/Handy), [VoiceInk](https://github.com/Beingpax/VoiceInk), [OpenWhispr](https://github.com/OpenWhispr/openwhispr), or [FreeFlow](https://github.com/zachlatta/freeflow). Dictate is the small, cloud-only, read-it-in-an-afternoon option.
 
+## How this was built
+
+Dictate was written with Claude (Anthropic) through [Claude Code](https://claude.com/claude-code). The repository is open; read the code and judge it on its merits.
+
+<details>
+<summary>About the process</summary>
+
+My role was direction, not authorship:
+
+- Product direction: deciding what to build, and what to leave out
+- Testing: using the app every day, finding bugs, checking features behave
+- Review: reading the generated code and the diffs before they land
+
+I'm disclosing this because it's true and because the code should stand on its own. If something is wrong, [open an issue](https://github.com/minchenlee/dictate/issues).
+
+</details>
+
 ## License
 
 [MIT](LICENSE)
@@ -112,6 +130,8 @@ Dictation apps are a crowded space. If you want local models, AI cleanup, or cro
 
 Dictate 是一個很小的 macOS 選單列語音輸入 app：按住右 ⌘ 說話，放開後文字就貼到游標所在的輸入框。
 
+**這個專案是用 AI（Claude Code）寫的。方向、測試和審查由人負責。**
+
 - 觸發鍵可以選任一修飾鍵（左右 ⌘⌥⌃⇧、Fn），或錄一組組合鍵（例如 ⌥Space）。模式有「按住說話」和「按一下切換」。按 Esc 取消。
 - 轉錄走任何 OpenAI 相容的 API。內建 OpenAI（`gpt-transcribe`）和 OpenRouter 預設，也可以自訂 base URL。
 - API key 存在「鑰匙圈」。
@@ -121,3 +141,13 @@ Dictate 是一個很小的 macOS 選單列語音輸入 app：按住右 ⌘ 說�
 - 需要「麥克風」和「輔助使用」兩個權限。權限失效時，照[權限設定指南](docs/PERMISSIONS.zh-Hant.md)重設。
 
 建置：`scripts/bundle.sh`，然後 `open build/Dictate.app`。
+
+### 怎麼做出來的
+
+程式碼由 Claude（Anthropic）透過 Claude Code 撰寫。我負責方向，不負責撰寫：
+
+- 方向：決定要做什麼，也決定不做什麼。
+- 測試：每天實際使用，找出 bug，確認功能正常。
+- 審查：程式碼和 diff 合併前先讀過。
+
+我說明這件事，是因為這是事實，也因為程式碼應該靠自己站得住。發現問題請[開 issue](https://github.com/minchenlee/dictate/issues)。
